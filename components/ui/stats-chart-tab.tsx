@@ -1,0 +1,159 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
+import { Data } from "@/lib/db"
+
+interface StatsChartTabProps {
+  readonly value: string
+  readonly title: string
+  readonly data: Data[]
+  readonly period: string
+}
+
+export function StatsChartTab({ value, title, data, period }: Readonly<StatsChartTabProps>) {
+  const calculateStats = (data: Data[], period: string) => {
+    if (!data || data.length < 2) return { change: '0.00', avgPrice: 'N/A', volume: 'N/A' };
+
+    const current = data[0];
+    const previous = data[1];
+
+    const change = ((current.close - previous.close) / previous.close * 100).toFixed(2);
+    return {
+      change,
+      avgPrice: current.avg_price.toFixed(4),
+      volume: 'N/A'
+    };
+  };
+
+  const calculateDomain = (data: Data[]) => {
+    if (!data || data.length === 0) return [1.00, 1.40];
+    
+    const values = data.map(d => d.close);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const padding = (max - min) * 0.1;
+    
+    return [
+      Math.max(0.95, min - padding),
+      Math.min(1.50, max + padding)
+    ];
+  };
+
+  const stats = [
+    {
+      title: 'EUR/USD Change',
+      value: calculateStats(data, period).change,
+      change: calculateStats(data, period).change,
+      previousValue: period === 'weekly' ? 'vs. previous week' : period === 'monthly' ? 'vs. previous month' : 'vs. previous day'
+    },
+    {
+      title: 'Average Price',
+      value: calculateStats(data, period).avgPrice,
+      change: calculateStats(data, period).change,
+      previousValue: period === 'weekly' ? 'weekly average' : period === 'monthly' ? 'monthly average' : 'current price'
+    },
+    {
+      title: 'Trading Volume',
+      value: calculateStats(data, period).volume,
+      change: '0%',
+      previousValue: period === 'weekly' ? 'weekly volume' : period === 'monthly' ? 'monthly volume' : 'daily volume'
+    }
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {stats.map((stat) => (
+          <Card key={stat.title} role="region" aria-label={`${stat.title} statistics`} className="bg-gradient-to-br from-card to-card/80 hover:shadow-lg transition-all duration-300">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                {stat.title}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground" aria-label={`Current value: ${stat.value}`}>{stat.value}</div>
+              <p className="text-xs text-muted-foreground mt-1" aria-label={`Comparison: ${stat.previousValue}`}>
+                {stat.previousValue}
+              </p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <Card role="region" aria-label={`${title} chart`} className="bg-gradient-to-br from-card to-card/80">
+        <CardHeader>
+          <CardTitle className="text-xl font-semibold">{title}</CardTitle>
+        </CardHeader>
+        <CardContent className="pl-2">
+          <ResponsiveContainer width="100%" height={400}>
+            <LineChart data={data} role="figure" aria-label={`Line chart showing ${title} data`}>
+              <XAxis
+                dataKey="date"
+                stroke="#888888"
+                fontSize={12}
+                tickLine={true}
+                axisLine={true}
+                reversed={true}
+                tickFormatter={(date) => {
+                  const d = new Date(date);
+                  if (period === 'yearly') {
+                    return d.getFullYear().toString();
+                  } else if (period === 'monthly') {
+                    return d.toLocaleDateString('es-ES', { month: 'short', year: '2-digit' });
+                  } else if (period === 'weekly') {
+                    return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+                  } else {
+                    return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+                  }
+                }}
+              />
+              <YAxis
+                stroke="#888888"
+                fontSize={12}
+                tickLine={true}
+                axisLine={true}
+                tickFormatter={(value) => `$${value.toFixed(2)}`}
+                domain={calculateDomain(data)}
+              />
+              <Line
+                type="monotone"
+                dataKey="close"
+                stroke="#8884d8"
+                strokeWidth={2}
+                dot={false}
+                aria-label="EUR/USD price trend line"
+              />
+              <Tooltip
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    const value = payload[0]?.value;
+                    const formattedValue = typeof value === 'number' ? value.toFixed(4) : 'N/A';
+                    return (
+                      <div className="rounded-lg border bg-background p-2 shadow-sm" role="tooltip" aria-label={`Data point details: ${label}, Price: $${formattedValue}`}>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="flex flex-col">
+                            <span className="text-[0.70rem] uppercase text-muted-foreground">
+                              {period === 'weekly' ? 'Week' : period === 'monthly' ? 'Month' : 'Date'}
+                            </span>
+                            <span className="font-bold text-muted-foreground">{label}</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[0.70rem] uppercase text-muted-foreground">
+                              Price
+                            </span>
+                            <span className="font-bold">
+                              ${formattedValue}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+    </div>
+  );
+} 
