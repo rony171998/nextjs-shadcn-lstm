@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
 import axios from 'axios';
 
 interface IndicatorData {
@@ -48,22 +50,25 @@ export default function IndicatorsPage() {
   const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState('daily');
   const [selectedIndicator, setSelectedIndicator] = useState<IndicatorType>('rsi');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchIndicators = async () => {
+    setLoading(true);
+    setIsRefreshing(true);
+    try {
+      const response = await axios.get(`/api/eur-usd/indicators?period=${period}`);
+      setIndicators(response.data);
+      setError(null);
+    } catch (error) {
+      console.error('Error fetching indicators:', error);
+      setError(error instanceof Error ? error.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchIndicators() {
-      setLoading(true);
-      try {
-        const response = await axios.get(`/api/eur-usd/indicators?period=${period}`);
-        setIndicators(response.data);
-        setError(null);
-      } catch (error) {
-        console.error('Error fetching indicators:', error);
-        setError(error instanceof Error ? error.message : 'An error occurred');
-      } finally {
-        setLoading(false);
-      }
-    }
-
     fetchIndicators();
   }, [period]);
 
@@ -134,7 +139,19 @@ export default function IndicatorsPage() {
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-[1400px] mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Indicadores Técnicos EUR/USD</h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">Indicadores Técnicos EUR/USD</h1>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchIndicators}
+            disabled={isRefreshing}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Actualizando...' : 'Actualizar Datos'}
+          </Button>
+        </div>
         
         <Tabs defaultValue="daily" className="mb-8" onValueChange={setPeriod}>
           <TabsList>
