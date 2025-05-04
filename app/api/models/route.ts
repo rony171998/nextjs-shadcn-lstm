@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 
+const NEXT_PUBLIC_BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+
 export async function GET() {
   try {
-    const res = await fetch('http://127.0.0.1:8000/api/models', {
+    const res = await fetch(NEXT_PUBLIC_BACKEND_URL + '/api/models', {
       headers: { 'accept': 'application/json' },
       cache: 'default',
     });
