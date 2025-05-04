@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts"
+import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, TooltipProps } from "recharts"
 import { Data } from "@/lib/db"
 
 interface StatsChartTabProps {
@@ -148,8 +148,8 @@ export function StatsChartTab({ value, title, data, period, prediction }: Readon
                 />
                 <Legend />
 
-                <Tooltip
-                  content={({ active, payload, label }) => {
+                <Tooltip<number, "Predicción" | "Valor">
+                  content={({ active, payload, label }: TooltipProps<number, "Predicción" | "Valor">) => {
                     if (active && payload && payload.length) {
                       const value = payload[0]?.value;
                       const formattedValue = typeof value === 'number' ? value.toFixed(4) : 'N/A';
@@ -177,7 +177,7 @@ export function StatsChartTab({ value, title, data, period, prediction }: Readon
                     return null;
                   }}
                   labelFormatter={(date) => new Date(date).toLocaleDateString()}
-                  formatter={(value: number, name: string, props: any) => [
+                  formatter={(value: number, name: "Predicción" | "Valor", props: any) => [
                     value.toFixed(4),
                     props.payload.type === 'prediction' ? 'Predicción' : 'Valor'
                   ]}
