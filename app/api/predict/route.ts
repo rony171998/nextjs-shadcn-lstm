@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 
+const NEXT_PUBLIC_BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -13,7 +15,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing model_name' }, { status: 400 });
     }
 
-    const response = await axios.post('http://127.0.0.1:8000/predict',
+    const response = await axios.post(NEXT_PUBLIC_BACKEND_URL + '/predict',
     {
         ticker: body.ticker,
         model_name: body.model_name
