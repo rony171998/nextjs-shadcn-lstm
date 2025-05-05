@@ -1,26 +1,53 @@
 import { NextResponse } from 'next/server';
-import axios from 'axios';
+import { neon } from '@neondatabase/serverless';
 
-const NEXT_PUBLIC_BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+const sql = neon(process.env.DATABASE_URL!);
 
-export async function POST(request: Request) {
+export type Data = {
+  date: string;
+  avg_price: number;
+  high: number;
+  low: number;
+  open: number;
+  close: number;
+};
+
+export type Datapredictions = {
+  id: number;
+  fecha: Date;
+  último: number;
+  apertura: number;
+  máximo: number;
+  mínimo: number;
+  is_prediction: boolean;
+  model_name: string;
+  ticker: string;
+  created_at: Date;
+};
+
+export async function GET(request: Request) {
   try {
-    const body = await request.json();
-
-    if (!body.ticker) {
+    const { searchParams } = new URL(request.url);
+    const ticker = searchParams.get('ticker');
+    const model_name = searchParams.get('model_name');
+    
+    if (!ticker) {
       return NextResponse.json({ error: 'Missing ticker' }, { status: 400 });
     }
-
-    if (!body.model_name) {
+      
+    if (!model_name) {
       return NextResponse.json({ error: 'Missing model_name' }, { status: 400 });
     }
 
-    const response = await axios.post(NEXT_PUBLIC_BACKEND_URL + '/predict',
-    {
-        ticker: body.ticker,
-        model_name: body.model_name
-    })
-    return NextResponse.json(response.data);
+    const result = await sql`
+      SELECT * FROM predictions 
+      WHERE ticker = ${ticker} 
+      AND model_name = ${model_name}
+      ORDER BY fecha DESC
+    `;
+    console.log(result);
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Error in prediction:', error);
     return NextResponse.json(

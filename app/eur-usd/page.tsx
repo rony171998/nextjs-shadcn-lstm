@@ -7,6 +7,7 @@ import { RefreshCw } from 'lucide-react';
 import axios from 'axios';
 import { Data } from '@/lib/db';
 import { StatsChartTab } from '@/components/ui/stats-chart-tab';
+import { Datapredictions } from '@/app/api/predict/route';
 
 export default function Home() {
   const [data, setData] = useState<Data[]>([]);
@@ -14,7 +15,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState('daily');
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [prediction, setPrediction] = useState<Data[]>([]);
+  const [prediction, setPrediction] = useState<Datapredictions[]>([]);
   const [models, setModels] = useState<{ name: string; description: string }[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('TLS_LSTMModel');
 
@@ -49,9 +50,12 @@ export default function Home() {
   };
 
   const fetchPredict = async () => {
-    const response = await axios.post('/api/predict', 
-      { model_name: selectedModel, ticker: 'EUR_USD' }
-    );
+    const response = await axios.get('/api/predict', {
+      params: {
+        model_name: selectedModel,
+        ticker: 'EUR/USD'
+      }
+    });
     setPrediction(response.data);
   };
 

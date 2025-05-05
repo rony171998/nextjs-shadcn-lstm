@@ -1,13 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, TooltipProps } from "recharts"
 import { Data } from "@/lib/db"
+import { Datapredictions } from "@/app/api/predict/route"
 
 interface StatsChartTabProps {
   readonly value: string
   readonly title: string
   readonly data: Data[]
   readonly period: string
-  readonly prediction: Data[]
+  readonly prediction: Datapredictions[]
 }
 
 export function StatsChartTab({ value, title, data, period, prediction }: Readonly<StatsChartTabProps>) {
@@ -67,8 +68,8 @@ export function StatsChartTab({ value, title, data, period, prediction }: Readon
       type: 'historical'
     })),
     ...prediction.map(item => ({
-      date: new Date(item.date).toISOString().split('T')[0],
-      prediction: item.close,
+      date: new Date(item.fecha).toISOString().split('T')[0],
+      prediction: item.último,
       type: 'prediction'
     })),
   ];
