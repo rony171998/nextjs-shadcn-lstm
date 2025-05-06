@@ -66,7 +66,6 @@ export default function Home() {
 
   useEffect(() => {
     fetchPredict();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedModel, period]);
 
   return (
