@@ -523,7 +523,7 @@ export default function EurUsdAnalysisClient() {
               prediction={prediction}
               title="EUR/USD"
               period={period}
-              value={0}
+              value="0"
             />
           </div>
         </CardContent>
