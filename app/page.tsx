@@ -4,10 +4,11 @@ import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import { LanguageSwitcher } from '@/components/ui/language-switcher';
+import Logo from '@/components/Logo';
 
 export default function LandingPage() {
   const { language } = useLanguage();
-  
+
   // Textos traducidos
   const translations = {
     en: {
@@ -197,17 +198,22 @@ export default function LandingPage() {
       }
     }
   };
-  
+
   // Usar el idioma actual o inglés como fallback
   const currentTranslation = translations[language as keyof typeof translations] || translations.en;
-  
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-background to-muted flex flex-col items-center justify-center p-6">
       {/* NAVBAR */}
       <nav className="w-full max-w-7xl mx-auto flex items-center justify-between py-6 px-2 md:px-8 mb-4">
         {/* Logo */}
-        <div className="flex items-center gap-2">
-          <span className="text-2xl font-extrabold text-primary">Analytics Market AI</span>
+        <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="w-10 h-10">
+              <Logo />
+            </div>
+            <span className="text-2xl font-extrabold text-primary">Analytics Market AI</span>
+          </Link>
           {/* Puedes reemplazar el texto por una imagen si tienes un logo */}
         </div>
         {/* Links */}
@@ -394,18 +400,18 @@ export default function LandingPage() {
                 link: '#'
               }
             ].map((post, idx) => (
-            <div key={idx} className="bg-card rounded-xl border border-border shadow-md overflow-hidden flex flex-col">
-              <div className="h-40 w-full bg-muted flex items-center justify-center overflow-hidden">
-                <img src={post.img} alt={post.title} className="object-cover w-full h-full" />
+              <div key={idx} className="bg-card rounded-xl border border-border shadow-md overflow-hidden flex flex-col">
+                <div className="h-40 w-full bg-muted flex items-center justify-center overflow-hidden">
+                  <img src={post.img} alt={post.title} className="object-cover w-full h-full" />
+                </div>
+                <div className="flex-1 flex flex-col p-5">
+                  <span className="text-xs text-muted-foreground mb-2">{post.date}</span>
+                  <h3 className="font-bold text-lg mb-2 text-primary">{post.title}</h3>
+                  <p className="text-sm text-muted-foreground mb-4 flex-1">{post.desc}</p>
+                  <a href={post.link} className="mt-auto text-sm font-semibold text-green-700 hover:underline">{currentTranslation.blogsSection.readMore} →</a>
+                </div>
               </div>
-              <div className="flex-1 flex flex-col p-5">
-                <span className="text-xs text-muted-foreground mb-2">{post.date}</span>
-                <h3 className="font-bold text-lg mb-2 text-primary">{post.title}</h3>
-                <p className="text-sm text-muted-foreground mb-4 flex-1">{post.desc}</p>
-                <a href={post.link} className="mt-auto text-sm font-semibold text-green-700 hover:underline">{currentTranslation.blogsSection.readMore} →</a>
-              </div>
-            </div>
-          ))}
+            ))}
         </div>
       </section>
 
@@ -434,7 +440,7 @@ export default function LandingPage() {
 
 function FAQAccordion() {
   const { language } = useLanguage();
-  
+
   const faqTranslations = {
     en: [
       {
@@ -489,7 +495,7 @@ function FAQAccordion() {
       },
     ]
   };
-  
+
   const faqs = faqTranslations[language as keyof typeof faqTranslations] || faqTranslations.en;
   const [openIndex, setOpenIndex] = useState(0);
   return (
