@@ -361,8 +361,8 @@ export default function Dashboard() {
                       <div>
                         <p className="text-2xl font-bold">$
                           <AnimatedNumber
-                            value={asset.lastPrice ? parseFloat(asset.lastPrice.toFixed(2)) : 0}
-                            formatValue={(val) => val.toFixed(2)}
+                            value={asset.lastPrice ? parseFloat(asset.lastPrice.toFixed(4)) : 0}
+                            formatValue={(val) => val.toFixed(4)}
                           />
                         </p>
                         <p className={`text-sm ${asset.change24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
@@ -373,8 +373,8 @@ export default function Dashboard() {
                         <p className="text-sm text-muted-foreground">24h Volume</p>
                         <p className="text-sm font-medium">$
                           <AnimatedNumber
-                            value={asset.volume24h ? parseFloat((asset.volume24h / 1000000).toFixed(2)) : 0}
-                            formatValue={(val) => val.toFixed(2)}
+                            value={asset.volume24h ? parseFloat((asset.volume24h / 1000000).toFixed(4)) : 0}
+                            formatValue={(val) => val.toFixed(4)}
                           />
                           M</p>
                       </div>
@@ -384,8 +384,8 @@ export default function Dashboard() {
                         <p className="text-sm text-muted-foreground">Market Cap</p>
                         <p className="text-sm font-medium">$
                           <AnimatedNumber
-                            value={asset.marketCap ? parseFloat((asset.marketCap / 1000000).toFixed(2)) : 0}
-                            formatValue={(val) => val.toFixed(2)}
+                            value={asset.marketCap ? parseFloat((asset.marketCap / 1000000).toFixed(4)) : 0}
+                            formatValue={(val) => val.toFixed(4)}
                           />
                           M</p>
                       </div>
@@ -393,8 +393,8 @@ export default function Dashboard() {
                         <p className="text-sm text-muted-foreground">Volatility</p>
                         <p className="text-sm font-medium">
                           <AnimatedNumber
-                            value={asset.volatility ? parseFloat(asset.volatility.toFixed(2)) : 0}
-                            formatValue={(val) => val.toFixed(2)}
+                            value={asset.volatility ? parseFloat(asset.volatility.toFixed(4)) : 0}
+                            formatValue={(val) => val.toFixed(4)}
                           />
                           %</p>
                       </div>
