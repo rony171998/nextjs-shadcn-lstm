@@ -367,7 +367,7 @@ export default function EurUsdAnalysisClient() {
             {isRefreshing ? (
               <Skeleton className="h-4 w-16" />
             ) : (
-              <Badge variant={parseFloat(marketData.priceChangePercent) >= 0 ? 'success' : 'destructive'}>
+              <Badge variant={parseFloat(marketData.priceChangePercent) >= 0 ? 'success' : 'default'}>
                 {parseFloat(marketData.priceChangePercent) >= 0 ? (
                   <TrendingUp className="h-4 w-4 mr-1" />
                 ) : (
