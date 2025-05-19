@@ -360,7 +360,8 @@ export default function EurUsdAnalysisClient() {
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Precio Actual */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Precio Actual</CardTitle>
@@ -390,37 +391,56 @@ export default function EurUsdAnalysisClient() {
                 <Skeleton className="h-4 w-16 mt-1" />
               ) : (
                 `$${marketData.priceChange || '0.00'}`
-              )}
+              )} (24h)
             </div>
           </CardContent>
         </Card>
 
+        {/* Precio de Apertura */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Máximo 24h</CardTitle>
+            <CardTitle className="text-sm font-medium">Precio de Apertura</CardTitle>
           </CardHeader>
           <CardContent>
             {isRefreshing ? (
               <Skeleton className="h-8 w-24" />
             ) : (
-              <div className="text-2xl font-bold">${marketData.highPrice || 'N/A'}</div>
+              <div className="text-2xl font-bold">${marketData.openPrice || 'N/A'}</div>
             )}
+            <div className="text-sm text-muted-foreground">
+              {isRefreshing ? (
+                <Skeleton className="h-4 w-16 mt-1" />
+              ) : (
+                `$${(parseFloat(marketData.lastPrice) - parseFloat(marketData.openPrice)).toFixed(4)}`
+              )} (vs. actual)
+            </div>
           </CardContent>
         </Card>
 
+        {/* Rango de Precios */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Mínimo 24h</CardTitle>
+            <CardTitle className="text-sm font-medium">Rango 24h</CardTitle>
           </CardHeader>
           <CardContent>
             {isRefreshing ? (
               <Skeleton className="h-8 w-24" />
             ) : (
-              <div className="text-2xl font-bold">${marketData.lowPrice || 'N/A'}</div>
+              <div className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Máx:</span>
+                  <span className="font-medium">${marketData.highPrice || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Mín:</span>
+                  <span className="font-medium">${marketData.lowPrice || 'N/A'}</span>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
 
+        {/* Volumen */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Volumen 24h</CardTitle>
@@ -429,20 +449,123 @@ export default function EurUsdAnalysisClient() {
             {isRefreshing ? (
               <Skeleton className="h-8 w-24" />
             ) : (
-              <div className="text-2xl font-bold">
-                $
-                <AnimatedNumber
-                  value={marketData.volume ? parseFloat(marketData.volume) : 0}
-                  formatValue={(val) => {
-                    if (val >= 1000000) {
-                      return `${(val / 1000000).toFixed(2)}M`;
-                    }
-                    if (val >= 1000) {
-                      return `${(val / 1000).toFixed(2)}K`;
-                    }
-                    return val.toFixed(2);
-                  }}
-                />
+              <div className="space-y-1">
+                <div className="text-2xl font-bold">
+                  $
+                  <AnimatedNumber
+                    value={marketData.volume ? parseFloat(marketData.volume) : 0}
+                    formatValue={(val) => {
+                      if (val >= 1000000) {
+                        return `${(val / 1000000).toFixed(2)}M`;
+                      }
+                      if (val >= 1000) {
+                        return `${(val / 1000).toFixed(2)}K`;
+                      }
+                      return val.toFixed(2);
+                    }}
+                  />
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {marketData.quoteVolume && (
+                    <>
+                      ${(parseFloat(marketData.quoteVolume) / 1000000).toFixed(2)}M en valor
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Precio Promedio Ponderado */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Precio Promedio</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isRefreshing ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <div className="space-y-1">
+                <div className="text-2xl font-bold">${marketData.weightedAvgPrice || 'N/A'}</div>
+                <div className="text-sm text-muted-foreground">
+                  Ponderado por volumen
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Precio de Cierre Anterior */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Cierre Anterior</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isRefreshing ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <div className="space-y-1">
+                <div className="text-2xl font-bold">${marketData.prevClosePrice || 'N/A'}</div>
+                <div className="text-sm text-muted-foreground">
+                  {marketData.prevClosePrice && (
+                    <span className={parseFloat(marketData.lastPrice) >= parseFloat(marketData.prevClosePrice) ? 'text-green-500' : 'text-red-500'}>
+                      {((parseFloat(marketData.lastPrice) / parseFloat(marketData.prevClosePrice) - 1) * 100).toFixed(2)}% vs actual
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Estadísticas de Oferta/Demanda */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Oferta/Demanda</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isRefreshing ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Mejor oferta:</span>
+                  <span className="font-medium">${marketData.bidPrice || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Mejor demanda:</span>
+                  <span className="font-medium">${marketData.askPrice || 'N/A'}</span>
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Spread: {marketData.bidPrice && marketData.askPrice ? 
+                    (parseFloat(marketData.askPrice) - parseFloat(marketData.bidPrice)).toFixed(4) : 'N/A'}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Estadísticas de Tiempo */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Estadísticas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isRefreshing ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <div className="space-y-1">
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Operaciones:</span>{' '}
+                  <span className="font-medium">{marketData.count?.toLocaleString() || 'N/A'}</span>
+                </div>
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Actualizado:</span>{' '}
+                  <span className="font-medium">
+                    {marketData.closeTime ? new Date(marketData.closeTime).toLocaleTimeString() : 'N/A'}
+                  </span>
+                </div>
               </div>
             )}
           </CardContent>
@@ -515,15 +638,16 @@ export default function EurUsdAnalysisClient() {
             </Select>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="h-[600px]">
+        <CardContent className="p-0 overflow-hidden">
+          <div className="w-full">
             <TradingViewChart
               type={chartType}
               data={data}
               prediction={prediction}
-              title="EUR/USD"
+              title={marketData.symbol}
               period={period}
               value="0"
+              height={500} // Altura personalizable
             />
           </div>
         </CardContent>

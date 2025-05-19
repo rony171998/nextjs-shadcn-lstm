@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,6 +77,7 @@ export default function Dashboard() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [news, setNews] = useState<NewsItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
   const fetchMarketData = async (isInitial = false) => {
     if (isInitial) {
@@ -191,27 +193,40 @@ export default function Dashboard() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold">Market Dashboard</h1>
-          <p className="text-muted-foreground">Monitor and analyze your favorite assets</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search assets..."
-              className="pl-10 w-64"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+      <div className="flex flex-col space-y-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="outline" 
+              size="icon"
+              className="h-10 w-10"
+              onClick={() => router.back()}
+              title="Volver atrás"
+            >
+              ←
+            </Button>
+            <div className="space-y-1">
+              <h1 className="text-3xl font-bold">Market Dashboard</h1>
+              <p className="text-muted-foreground">Monitor and analyze your favorite assets</p>
+            </div>
           </div>
-          <Button variant="outline" size="icon">
-            <Bell className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="icon">
-            <Settings className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search assets..."
+                className="pl-10 w-64"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <Button variant="outline" size="icon">
+              <Bell className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon">
+              <Settings className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 

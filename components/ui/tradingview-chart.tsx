@@ -10,11 +10,33 @@ interface TradingViewChartProps {
   readonly period: 'daily' | 'weekly' | 'monthly' | 'yearly'
   readonly prediction: Datapredictions[]
   readonly type: string
+  readonly height?: number
 }
 
-export function TradingViewChart({ value, title, data, period, prediction, type }: Readonly<TradingViewChartProps>) {
+export function TradingViewChart({ 
+  value, 
+  title, 
+  data, 
+  period, 
+  prediction, 
+  type, 
+  height = 450 
+}: Readonly<TradingViewChartProps>) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
+
+  // Función para actualizar el tamaño del gráfico
+  const updateChartSize = (chart: IChartApi) => {
+    if (!chartContainerRef.current) return;
+    
+    const width = chartContainerRef.current.clientWidth;
+    const height = chartContainerRef.current.clientHeight;
+    
+    chart.applyOptions({ 
+      width,
+      height,
+    });
+  };
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -30,7 +52,7 @@ export function TradingViewChart({ value, title, data, period, prediction, type 
         horzLines: { visible: false },
       },
       width: chartContainerRef.current.clientWidth,
-      height: 600,
+      height: chartContainerRef.current.clientHeight,
       timeScale: {
         timeVisible: true,
         secondsVisible: false,
@@ -223,16 +245,52 @@ export function TradingViewChart({ value, title, data, period, prediction, type 
       }
     };
 
-    window.addEventListener('resize', handleResize);
+    // Configurar el observador de redimensionamiento
+    const resizeObserver = new ResizeObserver(() => {
+      updateChartSize(chart);
+    });
 
-    // Limpieza
+    if (chartContainerRef.current) {
+      resizeObserver.observe(chartContainerRef.current);
+    }
+
+    // Limpieza al desmontar
     return () => {
-      window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       chart.remove();
     };
-  }, [data, prediction, type, period]);
+  }, [data, prediction, period, type]);
+
+  // Asegurarse de que el contenedor tenga un tamaño inicial
+  useEffect(() => {
+    const updateInitialSize = () => {
+      if (chartContainerRef.current) {
+        chartContainerRef.current.style.height = `${height}px`;
+      }
+    };
+    
+    updateInitialSize();
+    
+    // Opcional: Si quieres que siga siendo responsivo
+    const handleResize = () => {
+      updateInitialSize();
+      if (chartRef.current) {
+        updateChartSize(chartRef.current);
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [height]);
 
   return (
-    <div className="h-[600px] w-full" ref={chartContainerRef} />
+    <div 
+      ref={chartContainerRef} 
+      className="w-full h-full min-h-[300px]"
+      style={{ height: '100%', width: '100%' }}
+    />
   );
-} 
+}
