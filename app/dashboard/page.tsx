@@ -120,7 +120,7 @@ export default function Dashboard() {
             alerts: 0
           });
         } catch (error) {
-          console.warn(`No se pudo obtener datos para ${symbol}:`, error.message);
+          console.warn(`No se pudo obtener datos para ${symbol}:`, error instanceof Error ? error.message : 'An error occurred');
           // Continuar con los siguientes símbolos
         }
       }
