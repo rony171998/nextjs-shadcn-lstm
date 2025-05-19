@@ -1,17 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Search, TrendingUp, Star, Clock, ArrowRight, BarChart2, Settings, Bell, Plus, Filter, ChevronDown, Newspaper, ExternalLink } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Search, Star, Bell, ArrowUpRight, ArrowDownRight, ArrowRight, ChevronRight, MoreHorizontal, Settings, BarChart2, Filter, Clock, Newspaper, ExternalLink, DollarSign, Bitcoin, BarChart, TrendingUp, Package } from 'lucide-react';
 import Link from 'next/link';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { getTickerPrice, BinanceTicker } from '@/lib/binance';
 import {
   Select,
   SelectContent,
@@ -19,8 +15,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AnimatedNumber } from '@/components/ui/animated-number';
+
+export interface AssetBinance {
+  symbol: string
+  priceChange: string
+  priceChangePercent: string
+  weightedAvgPrice: string
+  prevClosePrice: string
+  lastPrice: string
+  lastQty: string
+  bidPrice: string
+  bidQty: string
+  askPrice: string
+  askQty: string
+  openPrice: string
+  highPrice: string
+  lowPrice: string
+  volume: string
+  quoteVolume: string
+  openTime: number
+  closeTime: number
+  firstId: number
+  lastId: number
+  count: number
+}
 
 interface Asset {
   id: string;
@@ -37,6 +56,7 @@ interface Asset {
   alerts?: number;
 }
 
+
 interface NewsItem {
   id: string;
   title: string;
@@ -52,112 +72,93 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [assets, setAssets] = useState<Asset[]>([]);
   const [filteredAssets, setFilteredAssets] = useState<Asset[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('Forex');
   const [sortBy, setSortBy] = useState<string>('marketCap');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [isLoading, setIsLoading] = useState(true);
-  const [showAlerts, setShowAlerts] = useState(false);
   const [news, setNews] = useState<NewsItem[]>([]);
-  const [selectedNewsCategory, setSelectedNewsCategory] = useState<string>('all');
+
+  const fetchMarketData = async () => {
+    try {
+
+      // Definir los símbolos que queremos seguir con sus formatos correctos para Binance
+      const symbols = [
+        // Forex (en Binance, los pares de Forex no son directamente soportados, usamos futuros)
+        { symbol: 'EURUSDT', name: 'Euro / US Dollar', category: 'Forex' },
+        { symbol: 'GBPUSDT', name: 'British Pound / US Dollar', category: 'Forex' },
+        { symbol: 'AUDUSDT', name: 'Australian Dollar / US Dollar', category: 'Forex' },
+        { symbol: 'USDCUSDT', name: 'US Dollar / Canadian Dollar', category: 'Forex' },
+
+        // Criptomonedas (en USDT para consistencia)
+        { symbol: 'BTCUSDT', name: 'Bitcoin', category: 'Crypto' },
+        { symbol: 'ETHUSDT', name: 'Ethereum', category: 'Crypto' },
+        { symbol: 'BNBUSDT', name: 'BNB', category: 'Crypto' },
+        { symbol: 'SOLUSDT', name: 'Solana', category: 'Crypto' },
+        { symbol: 'ADAUSDT', name: 'Cardano', category: 'Crypto' },
+      ];
+
+      // Obtener datos de todos los símbolos con manejo de errores mejorado
+      const assetsData = [];
+
+      for (const { symbol, name, category } of symbols) {
+        try {
+          const ticker = await getTickerPrice(symbol);
+          if (!ticker) continue;
+
+          const priceChangePercent = parseFloat(ticker.priceChangePercent);
+          assetsData.push({
+            id: symbol,
+            name,
+            symbol,
+            category,
+            lastPrice: parseFloat(ticker.lastPrice || '0'),
+            change24h: parseFloat(ticker.priceChangePercent || '0'),
+            volume24h: (parseFloat(ticker.volume || '0') * parseFloat(ticker.weightedAvgPrice || '0')) || 0,
+            isFavorite: false,
+            marketCap: 0, // Necesitarías una API adicional para esto
+            volatility: Math.abs(parseFloat(ticker.highPrice || '0') - parseFloat(ticker.lowPrice || '0')) / (parseFloat(ticker.lowPrice || '1') || 1) * 100,
+            trend: (priceChangePercent >= 0 ? 'up' : 'down') as 'up' | 'down',
+            alerts: 0
+          });
+        } catch (error) {
+          console.warn(`No se pudo obtener datos para ${symbol}:`, error.message);
+          // Continuar con los siguientes símbolos
+        }
+      }
+
+      // Actualizar estado con los datos obtenidos
+      setAssets(assetsData);
+      setFilteredAssets(assetsData);
+      console.log('Datos cargados:', assetsData);
+    } catch (error) {
+      console.error('Error fetching market data:', error);
+    }
+  };
 
   useEffect(() => {
-    // Simulación de datos - En producción esto vendría de una API
-    const mockAssets: Asset[] = [
-        {
-          id: '1',
-          name: 'Euro / US Dollar',
-          symbol: 'EUR/USD',
-          category: 'Forex',
-          lastPrice: 1.1329,
-          change24h: 0.28,
-          volume24h: 1_200_000_000,
-          isFavorite: true,
-          marketCap: 2_000_000_000_000,
-          volatility: 0.8,
-          trend: 'up',
-          alerts: 2
-        },
-        {
-          id: '2',
-          name: 'British Pound / US Dollar',
-          symbol: 'GBP/USD',
-          category: 'Forex',
-          lastPrice: 1.3282,
-          change24h: -0.06,
-          volume24h: 800_000_000,
-          isFavorite: false,
-          marketCap: 1_500_000_000_000,
-          volatility: 0.6,
-          trend: 'down',
-          alerts: 1
-        },
-        {
-          id: '3',
-          name: 'US Dollar / Japanese Yen',
-          symbol: 'USD/JPY',
-          category: 'Forex',
-          lastPrice: 144.92,
-          change24h: -0.31,
-          volume24h: 900_000_000,
-          isFavorite: false,
-          marketCap: 1_800_000_000_000,
-          volatility: 0.7,
-          trend: 'down',
-          alerts: 0
-        },
-        {
-          id: '4',
-          name: 'Gold',
-          symbol: 'XAU/USD',
-          category: 'Commodities',
-          lastPrice: 3_254.42,
-          change24h: 0.64,
-          volume24h: 500_000_000,
-          isFavorite: true,
-          marketCap: 12_000_000_000_000,
-          volatility: 1.2,
-          trend: 'up',
-          alerts: 3
-        },
-        {
-          id: '5',
-          name: 'Bitcoin',
-          symbol: 'BTC/USD',
-          category: 'Crypto',
-          lastPrice: 95_233.00,
-          change24h: -0.016,
-          volume24h: 15_850_000_000,
-          isFavorite: true,
-          marketCap: 1_880_000_000_000,
-          volatility: 2.5,
-          trend: 'down',
-          alerts: 5
-        }
-      ];      
+    // Cargar datos iniciales
+    fetchMarketData();
 
-    setAssets(mockAssets);
-    setFilteredAssets(mockAssets);
-    setIsLoading(false);
+    // Configurar actualización periódica (cada 30 segundos)
+    const intervalId = setInterval(fetchMarketData, 30000);
+
+    // Limpiar intervalo al desmontar
+    return () => clearInterval(intervalId);
   }, []);
 
   useEffect(() => {
     let filtered = assets;
-    
+
     if (searchQuery) {
-      filtered = filtered.filter(asset => 
+      filtered = filtered.filter(asset =>
         asset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         asset.symbol.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
-    
+
     if (selectedCategory !== 'all') {
       filtered = filtered.filter(asset => asset.category === selectedCategory);
     }
 
-    if (showAlerts) {
-      filtered = filtered.filter(asset => asset.alerts && asset.alerts > 0);
-    }
-    
     // Sorting
     filtered.sort((a, b) => {
       switch (sortBy) {
@@ -173,55 +174,55 @@ export default function Dashboard() {
           return 0;
       }
     });
-    
+
     setFilteredAssets(filtered);
-  }, [searchQuery, selectedCategory, assets, sortBy, showAlerts]);
+  }, [searchQuery, selectedCategory, assets, sortBy]);
 
   useEffect(() => {
     // Simulación de datos de noticias
     const mockNews: NewsItem[] = [
-        {
-          id: '1',
-          title: 'EUR/USD alcanza máximo de 3 años tras especulaciones sobre recortes del BCE',
-          description: 'El euro se fortaleció frente al dólar estadounidense, alcanzando su nivel más alto en tres años, impulsado por la especulación de que el Banco Central Europeo podría recortar las tasas de interés debido a las tensiones comerciales y una perspectiva económica incierta.',
-          source: 'Reuters',
-          date: '2025-04-20',
-          category: 'Forex',
-          sentiment: 'positive',
-          url: 'https://www.reuters.com/markets/currencies/euro-gets-lift-german-debt-brake-reform-currencies-mired-trade-war-fallout-2025-03-05/'
-        },
-        {
-          id: '2',
-          title: 'Bitcoin supera los $97,000 impulsado por la demanda institucional',
-          description: 'Bitcoin ha alcanzado un nuevo máximo de $97,000, respaldado por un aumento en la demanda institucional y la adopción de ETF de Bitcoin, consolidando su posición como una inversión principal.',
-          source: 'Yahoo Finance',
-          date: '2025-05-02',
-          category: 'Crypto',
-          sentiment: 'positive',
-          url: 'https://finance.yahoo.com/news/bitcoin-tops-97k-institutional-demand-000000440.html'
-        },
-        {
-          id: '3',
-          title: 'Precios del oro se estabilizan tras alcanzar récords históricos',
-          description: 'Después de alcanzar un récord de $3,500 por onza en abril, los precios del oro se han corregido a $3,250, estabilizándose mientras los inversores evalúan las condiciones macroeconómicas y las señales de sobrevaloración.',
-          source: 'The Economic Times',
-          date: '2025-05-04',
-          category: 'Commodities',
-          sentiment: 'neutral',
-          url: 'https://m.economictimes.com/news/international/us/gold-rate-predictions-has-the-bull-cycle-ended-heres-what-market-indicators-hint-at-amid-shifting-global-trends/articleshow/120876068.cms'
-        },
-        {
-          id: '4',
-          title: 'USD/JPY se debilita tras revisión a la baja de las previsiones del BOJ',
-          description: 'El yen japonés se debilitó frente al dólar estadounidense después de que el Banco de Japón revisara a la baja sus previsiones de crecimiento e inflación, manteniendo las tasas de interés sin cambios y generando incertidumbre en los mercados.',
-          source: 'Reuters',
-          date: '2025-05-01',
-          category: 'Forex',
-          sentiment: 'negative',
-          url: 'https://www.reuters.com/business/view-yen-slides-with-jgb-yields-after-boj-cuts-growth-forecasts-2025-05-01/'
-        }
-      ];
-      
+      {
+        id: '1',
+        title: 'EUR/USD alcanza máximo de 3 años tras especulaciones sobre recortes del BCE',
+        description: 'El euro se fortaleció frente al dólar estadounidense, alcanzando su nivel más alto en tres años, impulsado por la especulación de que el Banco Central Europeo podría recortar las tasas de interés debido a las tensiones comerciales y una perspectiva económica incierta.',
+        source: 'Reuters',
+        date: '2025-04-20',
+        category: 'Forex',
+        sentiment: 'positive',
+        url: 'https://www.reuters.com/markets/currencies/euro-gets-lift-german-debt-brake-reform-currencies-mired-trade-war-fallout-2025-03-05/'
+      },
+      {
+        id: '2',
+        title: 'Bitcoin supera los $97,000 impulsado por la demanda institucional',
+        description: 'Bitcoin ha alcanzado un nuevo máximo de $97,000, respaldado por un aumento en la demanda institucional y la adopción de ETF de Bitcoin, consolidando su posición como una inversión principal.',
+        source: 'Yahoo Finance',
+        date: '2025-05-02',
+        category: 'Crypto',
+        sentiment: 'positive',
+        url: 'https://finance.yahoo.com/news/bitcoin-tops-97k-institutional-demand-000000440.html'
+      },
+      {
+        id: '3',
+        title: 'Precios del oro se estabilizan tras alcanzar récords históricos',
+        description: 'Después de alcanzar un récord de $3,500 por onza en abril, los precios del oro se han corregido a $3,250, estabilizándose mientras los inversores evalúan las condiciones macroeconómicas y las señales de sobrevaloración.',
+        source: 'The Economic Times',
+        date: '2025-05-04',
+        category: 'Commodities',
+        sentiment: 'neutral',
+        url: 'https://m.economictimes.com/news/international/us/gold-rate-predictions-has-the-bull-cycle-ended-heres-what-market-indicators-hint-at-amid-shifting-global-trends/articleshow/120876068.cms'
+      },
+      {
+        id: '4',
+        title: 'USD/JPY se debilita tras revisión a la baja de las previsiones del BOJ',
+        description: 'El yen japonés se debilitó frente al dólar estadounidense después de que el Banco de Japón revisara a la baja sus previsiones de crecimiento e inflación, manteniendo las tasas de interés sin cambios y generando incertidumbre en los mercados.',
+        source: 'Reuters',
+        date: '2025-05-01',
+        category: 'Forex',
+        sentiment: 'negative',
+        url: 'https://www.reuters.com/business/view-yen-slides-with-jgb-yields-after-boj-cuts-growth-forecasts-2025-05-01/'
+      }
+    ];
+
 
     setNews(mockNews);
   }, []);
@@ -229,7 +230,7 @@ export default function Dashboard() {
   const categories = ['all', 'Forex', 'Crypto', 'Commodities', 'Stocks'];
 
   const toggleFavorite = (id: string) => {
-    setAssets(assets.map(asset => 
+    setAssets(assets.map(asset =>
       asset.id === id ? { ...asset, isFavorite: !asset.isFavorite } : asset
     ));
   };
@@ -293,22 +294,54 @@ export default function Dashboard() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {categories.map(category => (
-            <Button
-              key={category}
-              variant={selectedCategory === category ? "default" : "outline"}
-              onClick={() => setSelectedCategory(category)}
-              className="capitalize"
-            >
-              {category}
-            </Button>
-          ))}
+          <Button
+            variant={selectedCategory === 'all' ? "default" : "outline"}
+            onClick={() => setSelectedCategory('all')}
+            className="capitalize flex items-center gap-2"
+          >
+            <BarChart className="h-4 w-4" />
+            All
+          </Button>
+
+          <Button
+            variant={selectedCategory === 'Forex' ? "default" : "outline"}
+            onClick={() => setSelectedCategory('Forex')}
+            className="capitalize flex items-center gap-2"
+          >
+            <DollarSign className="h-4 w-4" />
+            Forex
+          </Button>
+
+          <Button
+            variant={selectedCategory === 'Crypto' ? "default" : "outline"}
+            onClick={() => setSelectedCategory('Crypto')}
+            className="capitalize flex items-center gap-2"
+          >
+            <Bitcoin className="h-4 w-4" />
+            Crypto
+          </Button>
+
+          <Button
+            variant={selectedCategory === 'Commodities' ? "default" : "outline"}
+            onClick={() => setSelectedCategory('Commodities')}
+            className="capitalize flex items-center gap-2"
+          >
+            <Package className="h-4 w-4" />
+            Commodities
+          </Button>
+
+          <Button
+            variant={selectedCategory === 'Stocks' ? "default" : "outline"}
+            onClick={() => setSelectedCategory('Stocks')}
+            className="capitalize flex items-center gap-2"
+          >
+            <TrendingUp className="h-4 w-4" />
+            Stocks
+          </Button>
         </div>
 
         <div className={`grid ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'} gap-6`}>
-          {isLoading ? (
-            <div className="col-span-full text-center py-12">Loading...</div>
-          ) : filteredAssets.length === 0 ? (
+          {filteredAssets.length === 0 ? (
             <div className="col-span-full text-center py-12">No assets found</div>
           ) : (
             filteredAssets.map((asset) => (
@@ -338,9 +371,8 @@ export default function Dashboard() {
                       onClick={() => toggleFavorite(asset.id)}
                     >
                       <Star
-                        className={`h-5 w-5 ${
-                          asset.isFavorite ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'
-                        }`}
+                        className={`h-5 w-5 ${asset.isFavorite ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'
+                          }`}
                       />
                     </Button>
                   </div>
@@ -349,24 +381,44 @@ export default function Dashboard() {
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
                       <div>
-                        <p className="text-2xl font-bold">${asset.lastPrice.toFixed(2)}</p>
+                        <p className="text-2xl font-bold">$
+                          <AnimatedNumber
+                            value={asset.lastPrice ? parseFloat(asset.lastPrice.toFixed(2)) : 0}
+                            formatValue={(val) => val.toFixed(2)}
+                          />
+                        </p>
                         <p className={`text-sm ${asset.change24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                           {asset.change24h >= 0 ? '+' : ''}{asset.change24h}%
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-muted-foreground">24h Volume</p>
-                        <p className="text-sm font-medium">${(asset.volume24h / 1000000).toFixed(1)}M</p>
+                        <p className="text-sm font-medium">$
+                          <AnimatedNumber
+                            value={asset.volume24h ? parseFloat((asset.volume24h / 1000000).toFixed(2)) : 0}
+                            formatValue={(val) => val.toFixed(2)}
+                          />
+                          M</p>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm text-muted-foreground">Market Cap</p>
-                        <p className="text-sm font-medium">${((asset.marketCap || 0) / 1000000).toFixed(1)}M</p>
+                        <p className="text-sm font-medium">$
+                          <AnimatedNumber
+                            value={asset.marketCap ? parseFloat((asset.marketCap / 1000000).toFixed(2)) : 0}
+                            formatValue={(val) => val.toFixed(2)}
+                          />
+                          M</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Volatility</p>
-                        <p className="text-sm font-medium">{asset.volatility?.toFixed(2)}%</p>
+                        <p className="text-sm font-medium">
+                          <AnimatedNumber
+                            value={asset.volatility ? parseFloat(asset.volatility.toFixed(2)) : 0}
+                            formatValue={(val) => val.toFixed(2)}
+                          />
+                          %</p>
                       </div>
                     </div>
                     <div className="flex justify-between items-center pt-2">
@@ -375,7 +427,7 @@ export default function Dashboard() {
                         <span>Real-time</span>
                       </div>
                       <div className="flex gap-2">
-                        {asset.symbol === 'EUR/USD' ? (
+                        {asset.symbol === 'EURUSDT' ? (
                           <Link href={`/eur-usd/analysis`}>
                             <Button variant="default" size="sm" className="flex items-center gap-2">
                               Analyze
@@ -427,10 +479,9 @@ export default function Dashboard() {
                   </div>
                   <Badge
                     variant={item.sentiment === 'positive' ? 'secondary' : item.sentiment === 'negative' ? 'destructive' : 'outline'}
-                    className={`${
-                      item.sentiment === 'positive' ? 'bg-green-500 text-white' :
+                    className={`${item.sentiment === 'positive' ? 'bg-green-500 text-white' :
                       item.sentiment === 'negative' ? 'bg-red-500 text-white' : ''
-                    }`}
+                      }`}
                   >
                     {item.sentiment}
                   </Badge>
