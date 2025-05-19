@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Star, Bell, ArrowUpRight, ArrowDownRight, ArrowRight, ChevronRight, MoreHorizontal, Settings, BarChart2, Filter, Clock, Newspaper, ExternalLink, DollarSign, Bitcoin, BarChart, TrendingUp, Package } from 'lucide-react';
+import { Skeleton } from "@/components/ui/skeleton";
+import { Search, Star, Bell, ArrowRight, Settings, BarChart2, Filter, Clock, Newspaper, ExternalLink, DollarSign, Bitcoin, BarChart, TrendingUp, Package } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from "@/components/ui/badge";
-import { getTickerPrice, BinanceTicker } from '@/lib/binance';
 import {
   Select,
   SelectContent,
@@ -56,7 +56,6 @@ interface Asset {
   alerts?: number;
 }
 
-
 interface NewsItem {
   id: string;
   title: string;
@@ -76,70 +75,55 @@ export default function Dashboard() {
   const [sortBy, setSortBy] = useState<string>('marketCap');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [news, setNews] = useState<NewsItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const fetchMarketData = async () => {
+  const fetchMarketData = async (isInitial = false) => {
+    if (isInitial) {
+      setIsLoading(true);
+    }
+    
     try {
-
-      // Definir los símbolos que queremos seguir con sus formatos correctos para Binance
-      const symbols = [
-        // Forex (en Binance, los pares de Forex no son directamente soportados, usamos futuros)
-        { symbol: 'EURUSDT', name: 'Euro / US Dollar', category: 'Forex' },
-        { symbol: 'GBPUSDT', name: 'British Pound / US Dollar', category: 'Forex' },
-        { symbol: 'AUDUSDT', name: 'Australian Dollar / US Dollar', category: 'Forex' },
-        { symbol: 'USDCUSDT', name: 'US Dollar / Canadian Dollar', category: 'Forex' },
-
-        // Criptomonedas (en USDT para consistencia)
-        { symbol: 'BTCUSDT', name: 'Bitcoin', category: 'Crypto' },
-        { symbol: 'ETHUSDT', name: 'Ethereum', category: 'Crypto' },
-        { symbol: 'BNBUSDT', name: 'BNB', category: 'Crypto' },
-        { symbol: 'SOLUSDT', name: 'Solana', category: 'Crypto' },
-        { symbol: 'ADAUSDT', name: 'Cardano', category: 'Crypto' },
-      ];
-
-      // Obtener datos de todos los símbolos con manejo de errores mejorado
-      const assetsData = [];
-
-      for (const { symbol, name, category } of symbols) {
-        try {
-          const ticker = await getTickerPrice(symbol);
-          if (!ticker) continue;
-
-          const priceChangePercent = parseFloat(ticker.priceChangePercent);
-          assetsData.push({
-            id: symbol,
-            name,
-            symbol,
-            category,
-            lastPrice: parseFloat(ticker.lastPrice || '0'),
-            change24h: parseFloat(ticker.priceChangePercent || '0'),
-            volume24h: (parseFloat(ticker.volume || '0') * parseFloat(ticker.weightedAvgPrice || '0')) || 0,
-            isFavorite: false,
-            marketCap: 0, // Necesitarías una API adicional para esto
-            volatility: Math.abs(parseFloat(ticker.highPrice || '0') - parseFloat(ticker.lowPrice || '0')) / (parseFloat(ticker.lowPrice || '1') || 1) * 100,
-            trend: (priceChangePercent >= 0 ? 'up' : 'down') as 'up' | 'down',
-            alerts: 0
-          });
-        } catch (error) {
-          console.warn(`No se pudo obtener datos para ${symbol}:`, error instanceof Error ? error.message : 'An error occurred');
-          // Continuar con los siguientes símbolos
-        }
+      const response = await fetch('/api/dashboard/market-data');
+      
+      if (!response.ok) {
+        throw new Error('Error al cargar los datos del mercado');
       }
-
+      
+      const assetsData = await response.json();
+      
       // Actualizar estado con los datos obtenidos
       setAssets(assetsData);
       setFilteredAssets(assetsData);
+      
+      // Solo cambiar el estado de carga si es la carga inicial
+      if (isInitial) {
+        setIsLoading(false);
+      }
+      
       console.log('Datos cargados:', assetsData);
     } catch (error) {
       console.error('Error fetching market data:', error);
+      // Asegurarse de que el loading se desactive incluso si hay un error
+      if (isInitial) {
+        setIsLoading(false);
+      }
     }
   };
 
+  // Efecto para la carga inicial y actualizaciones periódicas
   useEffect(() => {
+    // Función para cargar datos iniciales
+    const loadInitialData = async () => {
+      await fetchMarketData(true);
+    };
+    
     // Cargar datos iniciales
-    fetchMarketData();
+    loadInitialData();
 
     // Configurar actualización periódica (cada 30 segundos)
-    const intervalId = setInterval(fetchMarketData, 30000);
+    const intervalId = setInterval(() => {
+      fetchMarketData(false);
+    }, 30000);
 
     // Limpiar intervalo al desmontar
     return () => clearInterval(intervalId);
@@ -178,56 +162,26 @@ export default function Dashboard() {
     setFilteredAssets(filtered);
   }, [searchQuery, selectedCategory, assets, sortBy]);
 
-  useEffect(() => {
-    // Simulación de datos de noticias
-    const mockNews: NewsItem[] = [
-      {
-        id: '1',
-        title: 'EUR/USD alcanza máximo de 3 años tras especulaciones sobre recortes del BCE',
-        description: 'El euro se fortaleció frente al dólar estadounidense, alcanzando su nivel más alto en tres años, impulsado por la especulación de que el Banco Central Europeo podría recortar las tasas de interés debido a las tensiones comerciales y una perspectiva económica incierta.',
-        source: 'Reuters',
-        date: '2025-04-20',
-        category: 'Forex',
-        sentiment: 'positive',
-        url: 'https://www.reuters.com/markets/currencies/euro-gets-lift-german-debt-brake-reform-currencies-mired-trade-war-fallout-2025-03-05/'
-      },
-      {
-        id: '2',
-        title: 'Bitcoin supera los $97,000 impulsado por la demanda institucional',
-        description: 'Bitcoin ha alcanzado un nuevo máximo de $97,000, respaldado por un aumento en la demanda institucional y la adopción de ETF de Bitcoin, consolidando su posición como una inversión principal.',
-        source: 'Yahoo Finance',
-        date: '2025-05-02',
-        category: 'Crypto',
-        sentiment: 'positive',
-        url: 'https://finance.yahoo.com/news/bitcoin-tops-97k-institutional-demand-000000440.html'
-      },
-      {
-        id: '3',
-        title: 'Precios del oro se estabilizan tras alcanzar récords históricos',
-        description: 'Después de alcanzar un récord de $3,500 por onza en abril, los precios del oro se han corregido a $3,250, estabilizándose mientras los inversores evalúan las condiciones macroeconómicas y las señales de sobrevaloración.',
-        source: 'The Economic Times',
-        date: '2025-05-04',
-        category: 'Commodities',
-        sentiment: 'neutral',
-        url: 'https://m.economictimes.com/news/international/us/gold-rate-predictions-has-the-bull-cycle-ended-heres-what-market-indicators-hint-at-amid-shifting-global-trends/articleshow/120876068.cms'
-      },
-      {
-        id: '4',
-        title: 'USD/JPY se debilita tras revisión a la baja de las previsiones del BOJ',
-        description: 'El yen japonés se debilitó frente al dólar estadounidense después de que el Banco de Japón revisara a la baja sus previsiones de crecimiento e inflación, manteniendo las tasas de interés sin cambios y generando incertidumbre en los mercados.',
-        source: 'Reuters',
-        date: '2025-05-01',
-        category: 'Forex',
-        sentiment: 'negative',
-        url: 'https://www.reuters.com/business/view-yen-slides-with-jgb-yields-after-boj-cuts-growth-forecasts-2025-05-01/'
+  // Función para cargar noticias
+  const fetchNews = useCallback(async () => {
+    try {
+      const response = await fetch('/api/dashboard/news');
+      
+      if (!response.ok) {
+        throw new Error('Error al cargar las noticias');
       }
-    ];
-
-
-    setNews(mockNews);
+      
+      const newsData = await response.json();
+      setNews(newsData);
+    } catch (error) {
+      console.error('Error fetching news:', error);
+    }
   }, []);
 
-  const categories = ['all', 'Forex', 'Crypto', 'Commodities', 'Stocks'];
+  // Cargar noticias al montar el componente
+  useEffect(() => {
+    fetchNews();
+  }, [fetchNews]);
 
   const toggleFavorite = (id: string) => {
     setAssets(assets.map(asset =>
@@ -341,7 +295,31 @@ export default function Dashboard() {
         </div>
 
         <div className={`grid ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'} gap-6`}>
-          {filteredAssets.length === 0 ? (
+          {isLoading ? (
+            // Skeleton loaders
+            Array(6).fill(0).map((_, index) => (
+              <Card key={`skeleton-${index}`} className="space-y-3 p-4">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-6 w-32" />
+                  <Skeleton className="h-4 w-16" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-8 w-24" />
+                </div>
+                <div className="flex justify-between pt-2">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-6 w-16" />
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-6 w-20" />
+                  </div>
+                </div>
+              </Card>
+            ))
+          ) : filteredAssets.length === 0 ? (
             <div className="col-span-full text-center py-12">No assets found</div>
           ) : (
             filteredAssets.map((asset) => (
