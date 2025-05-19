@@ -15,8 +15,32 @@ import { AssetBinance } from '@/app/dashboard/page';
 import { getTickerPrice } from '@/lib/binance';
 import { AnimatedNumber } from '@/components/ui/animated-number';
 
+const initialMarketData: AssetBinance = {
+  symbol: '',
+  priceChange: '0',
+  priceChangePercent: '0',
+  weightedAvgPrice: '0',
+  prevClosePrice: '0',
+  lastPrice: '0',
+  lastQty: '0',
+  bidPrice: '0',
+  bidQty: '0',
+  askPrice: '0',
+  askQty: '0',
+  openPrice: '0',
+  highPrice: '0',
+  lowPrice: '0',
+  volume: '0',
+  quoteVolume: '0',
+  openTime: 0,
+  closeTime: 0,
+  firstId: 0,
+  lastId: 0,
+  count: 0
+};
+
 export default function EurUsdAnalysisClient() {
-  const [marketData, setMarketData] = useState<AssetBinance>({});
+  const [marketData, setMarketData] = useState<AssetBinance>(initialMarketData);
   const [chartType, setChartType] = useState('area');
   const [isLoading, setIsLoading] = useState(false);
 
