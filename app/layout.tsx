@@ -1,11 +1,12 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import { LanguageProvider } from '@/context/LanguageContext';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'EUR/USD Analysis',
+  title: 'Analysis Market IA',
   description: 'Análisis técnico del par EUR/USD',
 };
 
@@ -17,7 +18,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <main>{children}</main>
+        <LanguageProvider>
+          <main>{children}</main>
+        </LanguageProvider>
       </body>
     </html>
   );
