@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 import axios from 'axios';
 import { Data } from '@/lib/db';
 import { StatsChartTab } from '@/components/ui/stats-chart-tab';
@@ -71,9 +72,26 @@ export default function Home() {
   return (
     <div className="p-8">
       <div className="max-w-[1200px] mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-semibold">EUR/USD Analysis</h1>
+        <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-4">
+            <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors">
+              <Button variant="outline" size="icon">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
+            <h1 className="text-2xl font-bold">EUR/USD Analysis</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchData}
+              disabled={isRefreshing}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? 'Actualizando...' : 'Actualizar'}
+            </Button>
             <input
               type="text"
               placeholder="Search..."

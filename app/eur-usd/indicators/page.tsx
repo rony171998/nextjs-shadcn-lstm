@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, ArrowLeft } from "lucide-react";
 import axios from 'axios';
 
 interface IndicatorData {
@@ -45,6 +46,7 @@ const INDICATORS_CONFIG = {
 type IndicatorType = keyof typeof INDICATORS_CONFIG;
 
 export default function IndicatorsPage() {
+  const router = useRouter();
   const [indicators, setIndicators] = useState<Indicators>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -140,7 +142,17 @@ export default function IndicatorsPage() {
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-[1400px] mx-auto">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Indicadores Técnicos EUR/USD</h1>
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => router.back()}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <h1 className="text-3xl font-bold">Indicadores Técnicos EUR/USD</h1>
+          </div>
           <Button
             variant="outline"
             size="sm"

@@ -1,167 +1,238 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, TooltipProps } from "recharts"
+import { createChart, ColorType, IChartApi, Time, CandlestickData, LineData, CandlestickSeries, LineSeries, BarSeries, AreaSeries } from "lightweight-charts"
 import { Data } from "@/lib/db"
 import { Datapredictions } from "@/app/api/predict/route"
+import { useEffect, useRef } from "react"
 
 interface TradingViewChartProps {
   readonly value: string
   readonly title: string
   readonly data: Data[]
-  readonly period: string
+  readonly period: 'daily' | 'weekly' | 'monthly' | 'yearly'
   readonly prediction: Datapredictions[]
+  readonly type: string
 }
 
-export function TradingViewChart({ value, title, data, period, prediction }: Readonly<TradingViewChartProps>) {
-  const calculateStats = (data: Data[], period: string) => {
-    if (!data || data.length < 2) return { change: '0.00', avgPrice: 'N/A', volume: 'N/A' };
+export function TradingViewChart({ value, title, data, period, prediction, type }: Readonly<TradingViewChartProps>) {
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<IChartApi | null>(null);
 
-    const current = data[0];
-    const previous = data[1];
+  useEffect(() => {
+    if (!chartContainerRef.current) return;
 
-    const change = ((current.close - previous.close) / previous.close * 100).toFixed(2);
-    return {
-      change,
-      avgPrice: current.avg_price.toFixed(4),
-      volume: 'N/A'
-    };
-  };
+    // Crear el gráfico
+    const chart = createChart(chartContainerRef.current, {
+      layout: {
+        background: { type: ColorType.Solid, color: 'transparent' },
+        textColor: '#888888',
+      },
+      grid: {
+        vertLines: { visible: false },
+        horzLines: { visible: false },
+      },
+      width: chartContainerRef.current.clientWidth,
+      height: 600,
+      timeScale: {
+        timeVisible: true,
+        secondsVisible: false,
+        tickMarkFormatter: (time: number) => {
+          const date = new Date(time * 1000);
+          switch (period) {
+            case 'daily':
+              return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+            case 'weekly':
+              return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+            case 'monthly':
+              return date.toLocaleDateString('es-ES', { month: 'short', year: '2-digit' });
+            case 'yearly':
+              return date.getFullYear().toString();
+            default:
+              return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+          }
+        },
+      },
+    });
 
-  const calculateDomain = (data: Data[]) => {
-    if (!data || data.length === 0) return [1.00, 1.40];
-
-    const values = data.map(d => d.close);
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const padding = (max - min) * 0.1;
-
-    return [
-      Math.max(0.95, min - padding),
-      Math.min(1.50, max + padding)
-    ];
-  };
-
-  const stats = [
-    {
-      title: 'EUR/USD Change',
-      value: calculateStats(data, period).change,
-      change: calculateStats(data, period).change,
-      previousValue: period === 'weekly' ? 'vs. previous week' : period === 'monthly' ? 'vs. previous month' : 'vs. previous day'
-    },
-    {
-      title: 'Average Price',
-      value: calculateStats(data, period).avgPrice,
-      change: calculateStats(data, period).change,
-      previousValue: period === 'weekly' ? 'weekly average' : period === 'monthly' ? 'monthly average' : 'current price'
-    },
-    {
-      title: 'Trading Volume',
-      value: calculateStats(data, period).volume,
-      change: '0%',
-      previousValue: period === 'weekly' ? 'weekly volume' : period === 'monthly' ? 'monthly volume' : 'daily volume'
+    // Crear la serie de datos históricos según el tipo
+    let historicalSeries;
+    switch (type) {
+      case 'candlestick':
+        historicalSeries = chart.addSeries(CandlestickSeries, {
+          upColor: '#26a69a',
+          downColor: '#ef5350',
+          borderVisible: false,
+          wickUpColor: '#26a69a',
+          wickDownColor: '#ef5350',
+        });
+        break;
+      case 'line':
+        historicalSeries = chart.addSeries(LineSeries, {
+          color: '#2962FF',
+          lineWidth: 2,
+        });
+        break;
+      case 'bar':
+        historicalSeries = chart.addSeries(BarSeries, {
+          upColor: '#26a69a',
+          downColor: '#ef5350',
+        });
+        break;
+      case 'area':
+        historicalSeries = chart.addSeries(AreaSeries, {
+          lineColor: '#2962FF',
+          topColor: '#2962FF',
+          bottomColor: 'rgba(41, 98, 255, 0.28)',
+        });
+        break;
+      default:
+        historicalSeries = chart.addSeries(CandlestickSeries, {
+          upColor: '#26a69a',
+          downColor: '#ef5350',
+          borderVisible: false,
+          wickUpColor: '#26a69a',
+          wickDownColor: '#ef5350',
+        });
     }
-  ];
 
-  const chartData = [
-    ...data.map(item => ({
-      date: new Date(item.date).toISOString().split('T')[0],
-      value: item.close,
-      type: 'historical'
-    })),
-    ...prediction.map(item => ({
-      date: new Date(item.fecha).toISOString().split('T')[0],
-      prediction: item.último,
-      type: 'prediction'
-    })),
-  ];
+    // Crear la serie de predicciones según el tipo
+    let predictionSeries;
+    switch (type) {
+      case 'candlestick':
+        predictionSeries = chart.addSeries(CandlestickSeries, {
+          upColor: '#82ca9d',
+          downColor: '#ff6b6b',
+          borderVisible: false,
+          wickUpColor: '#82ca9d',
+          wickDownColor: '#ff6b6b',
+        });
+        break;
+      case 'line':
+        predictionSeries = chart.addSeries(LineSeries, {
+          color: '#82ca9d',
+          lineWidth: 2,
+          lineStyle: 2, // Línea punteada
+        });
+        break;
+      case 'bar':
+        predictionSeries = chart.addSeries(BarSeries, {
+          upColor: '#82ca9d',
+          downColor: '#ff6b6b',
+        });
+        break;
+      case 'area':
+        predictionSeries = chart.addSeries(AreaSeries, {
+          lineColor: '#82ca9d',
+          topColor: '#82ca9d',
+          bottomColor: 'rgba(130, 202, 157, 0.28)',
+        });
+        break;
+      default:
+        predictionSeries = chart.addSeries(LineSeries, {
+          color: '#82ca9d',
+          lineWidth: 2,
+          lineStyle: 2,
+        });
+    }
 
-  // Ordenar por fecha ascendente
-  chartData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    // Preparar y ordenar datos históricos
+    const historicalData = data
+      .map(item => {
+        if (type === 'candlestick' || type === 'bar') {
+          return {
+            time: new Date(item.date).getTime() / 1000 as Time,
+            open: item.open,
+            high: item.high,
+            low: item.low,
+            close: item.close,
+          };
+        } else {
+          return {
+            time: new Date(item.date).getTime() / 1000 as Time,
+            value: item.close,
+          };
+        }
+      })
+      .sort((a, b) => (a.time as number) - (b.time as number));
+
+    // Preparar y ordenar datos de predicción
+    const predictionData = prediction
+      .map(item => {
+        if (type === 'candlestick' || type === 'bar') {
+          return {
+            time: new Date(item.fecha).getTime() / 1000 as Time,
+            open: item.último,
+            high: item.último,
+            low: item.último,
+            close: item.último,
+          };
+        } else {
+          return {
+            time: new Date(item.fecha).getTime() / 1000 as Time,
+            value: item.último,
+          };
+        }
+      })
+      .sort((a, b) => (a.time as number) - (b.time as number));
+
+    // Agregar datos al gráfico
+    historicalSeries.setData(historicalData);
+    predictionSeries.setData(predictionData);
+
+    // Ajustar el rango de tiempo visible según el periodo
+    chart.timeScale().fitContent();
+
+    // Centramos la data automáticamente y hacemos zoom
+    const totalBars = historicalData.length + predictionData.length;
+    const containerWidth = chartContainerRef.current?.clientWidth || 600;
+    // Bar spacing depende del periodo
+    let barSpacing = 6;
+    switch (period) {
+      case 'weekly':
+        barSpacing = 12;
+        break;
+      case 'monthly':
+        barSpacing = 20;
+        break;
+      case 'yearly':
+        barSpacing = 30;
+        break;
+    }
+    const barsOnScreen = Math.floor(containerWidth / barSpacing);
+    let from = 0;
+    let to = totalBars - 1;
+    if (barsOnScreen < totalBars) {
+      // Centramos la data visible
+      const center = Math.floor(totalBars / 2);
+      from = Math.max(0, center - Math.floor(barsOnScreen / 2));
+      to = from + barsOnScreen - 1;
+    }
+    // Aplicar opciones y rango visible solo si hay datos y el rango es válido
+    chart.timeScale().applyOptions({ barSpacing, rightOffset: 0 });
+    if (totalBars > 0 && from <= to) {
+      chart.timeScale().setVisibleLogicalRange({ from, to });
+    }
+
+    // Guardar referencia del gráfico
+    chartRef.current = chart;
+
+    // Manejar el redimensionamiento
+    const handleResize = () => {
+      if (chartContainerRef.current) {
+        chart.applyOptions({
+          width: chartContainerRef.current.clientWidth,
+        });
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    // Limpieza
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      chart.remove();
+    };
+  }, [data, prediction, type, period]);
 
   return (
-    <div className="h-[500px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chartData} role="figure" aria-label={`Line chart showing ${title} data`}>
-          <XAxis
-            dataKey="date"
-            stroke="#888888"
-            fontSize={12}
-            tickLine={true}
-            axisLine={true}
-            tickFormatter={(date) => {
-              const d = new Date(date);
-              if (period === 'yearly') {
-                return d.getFullYear().toString();
-              } else if (period === 'monthly') {
-                return d.toLocaleDateString('es-ES', { month: 'short', year: '2-digit' });
-              } else if (period === 'weekly') {
-                return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
-              } else {
-                return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
-              }
-            }}
-          />
-          <YAxis
-            stroke="#888888"
-            fontSize={12}
-            tickLine={true}
-            axisLine={true}
-            tickFormatter={(value) => `$${value.toFixed(2)}`}
-            domain={calculateDomain(data)}
-          />
-          <Line
-            type="monotone"
-            dataKey="value"
-            stroke="#8884d8"
-            strokeWidth={2}
-            dot={false}
-            name="Histórico"
-          />
-          <Line
-            dataKey="prediction"
-            stroke="#82ca9d"
-            strokeWidth={2}
-            dot={false}
-            strokeDasharray="5 5"
-            name="Predicción"
-          />
-          <Legend />
-
-          <Tooltip<number, "Predicción" | "Valor">
-            content={({ active, payload, label }: TooltipProps<number, "Predicción" | "Valor">) => {
-              if (active && payload && payload.length) {
-                const value = payload[0]?.value;
-                const formattedValue = typeof value === 'number' ? value.toFixed(4) : 'N/A';
-                return (
-                  <div className="rounded-lg border bg-background p-2 shadow-sm" role="tooltip" aria-label={`Data point details: ${label}, Price: $${formattedValue}`}>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="flex flex-col">
-                        <span className="text-[0.70rem] uppercase text-muted-foreground">
-                          {period === 'weekly' ? 'Week' : period === 'monthly' ? 'Month' : 'Date'}
-                        </span>
-                        <span className="font-bold text-muted-foreground">{label}</span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[0.70rem] uppercase text-muted-foreground">
-                          Price
-                        </span>
-                        <span className="font-bold">
-                          ${formattedValue}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              }
-              return null;
-            }}
-            labelFormatter={(date) => new Date(date).toLocaleDateString()}
-            formatter={(value: number, name: "Predicción" | "Valor", props: any) => [
-              value.toFixed(4),
-              props.payload.type === 'prediction' ? 'Predicción' : 'Valor'
-            ]}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
+    <div className="h-[600px] w-full" ref={chartContainerRef} />
   );
 } 
