@@ -22,26 +22,5 @@ const nextConfig = {
   productionBrowserSourceMaps: false,
 };
 
-// Only require sentry in production
-if (process.env.NODE_ENV === 'production') {
-  const { withSentryConfig } = require('@sentry/nextjs');
-  module.exports = withSentryConfig(
-    nextConfig,
-    {
-      // For all available options, see:
-      // https://github.com/getsentry/sentry-webpack-plugin#options
-      silent: true,
-      org: 'your-org',
-      project: 'your-project',
-    },
-    {
-      // For all available options, see:
-      // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
-      // Suppresses source map uploading logs during build
-      dryRun: true,
-      hideSourceMaps: true,
-    }
-  );
-} else {
-  module.exports = nextConfig;
-}
+// Exportar la configuración directamente sin Sentry
+module.exports = nextConfig;
