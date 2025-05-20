@@ -17,6 +17,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AnimatedNumber } from '@/components/ui/animated-number';
+import { getTickerPrice } from '@/lib/binance';
+import { toast } from "sonner";
 
 export interface AssetBinance {
   symbol: string
@@ -79,19 +81,77 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
+  // Símbolos que queremos seguir (igual que en market-data API, pero obtenidos directamente)
+  const MARKET_SYMBOLS = [
+    // Forex
+    { symbol: 'EURUSDT', name: 'Euro / US Dollar', category: 'Forex' },
+    { symbol: 'USDTCOP', name: 'Colombian Peso / US Dollar', category: 'Forex' },
+    { symbol: 'GBPUSDT', name: 'British Pound / US Dollar', category: 'Forex' },
+    { symbol: 'AUDUSDT', name: 'Australian Dollar / US Dollar', category: 'Forex' },
+    { symbol: 'USDCUSDT', name: 'US Dollar / Canadian Dollar', category: 'Forex' },
+    // Criptomonedas
+    { symbol: 'BTCUSDT', name: 'Bitcoin', category: 'Crypto' },
+    { symbol: 'ETHUSDT', name: 'Ethereum', category: 'Crypto' },
+    { symbol: 'BNBUSDT', name: 'BNB', category: 'Crypto' },
+    { symbol: 'SOLUSDT', name: 'Solana', category: 'Crypto' },
+    { symbol: 'ADAUSDT', name: 'Cardano', category: 'Crypto' },
+  ];
+  
+  // Transformar datos de Binance al formato que usa tu aplicación
+  const transformTickerData = (ticker: AssetBinance, symbol: string, name: string, category: string): Asset => {
+    const priceChangePercent = parseFloat(ticker.priceChangePercent || '0');
+    return {
+      id: symbol,
+      name,
+      symbol,
+      category,
+      lastPrice: parseFloat(ticker.lastPrice || '0'),
+      change24h: priceChangePercent,
+      volume24h: (parseFloat(ticker.volume || '0') * parseFloat(ticker.weightedAvgPrice || '0')) || 0,
+      isFavorite: false,
+      marketCap: 0,
+      volatility: Math.abs(parseFloat(ticker.highPrice || '0') - parseFloat(ticker.lowPrice || '0')) / (parseFloat(ticker.lowPrice || '1') || 1) * 100,
+      trend: (priceChangePercent >= 0 ? 'up' : 'down'),
+      alerts: 0
+    };
+  };
+  
   const fetchMarketData = async (isInitial = false) => {
     if (isInitial) {
       setIsLoading(true);
     }
     
     try {
-      const response = await fetch('/api/dashboard/market-data');
+      const assetsData: Asset[] = [];
+      const prioritySymbols = MARKET_SYMBOLS.slice(0, 4); // Primero intentar con los 4 símbolos prioritarios
       
-      if (!response.ok) {
-        throw new Error('Error al cargar los datos del mercado');
+      // Intentar obtener datos para símbolos prioritarios primero
+      for (const { symbol, name, category } of prioritySymbols) {
+        try {
+          console.log(`Obteniendo datos para ${symbol}...`);
+          const ticker = await getTickerPrice(symbol);
+          
+          if (ticker) {
+            assetsData.push(transformTickerData(ticker, symbol, name, category));
+          }
+        } catch (error) {
+          console.warn(`No se pudo obtener datos para ${symbol}:`, error);
+          // Continuar con el siguiente símbolo
+        }
       }
       
-      const assetsData = await response.json();
+      // Si hay tiempo, intentar con el resto de símbolos
+      const remainingSymbols = MARKET_SYMBOLS.slice(4);
+      for (const { symbol, name, category } of remainingSymbols) {
+        try {
+          const ticker = await getTickerPrice(symbol);
+          if (ticker) {
+            assetsData.push(transformTickerData(ticker, symbol, name, category));
+          }
+        } catch (error) {
+          console.warn(`No se pudo obtener datos para ${symbol}:`, error);
+        }
+      }
       
       // Actualizar estado con los datos obtenidos
       setAssets(assetsData);
@@ -103,8 +163,19 @@ export default function Dashboard() {
       }
       
       console.log('Datos cargados:', assetsData);
+      
+      if (assetsData.length === 0) {
+        throw new Error('No se pudieron obtener datos de mercado');
+      }
     } catch (error) {
       console.error('Error fetching market data:', error);
+      
+      // Mostrar error al usuario
+      const errorMessage = error instanceof Error ? error.message : 'Error al cargar los datos del mercado';
+      toast?.error('Error de mercado', {
+        description: errorMessage,
+      });
+      
       // Asegurarse de que el loading se desactive incluso si hay un error
       if (isInitial) {
         setIsLoading(false);
