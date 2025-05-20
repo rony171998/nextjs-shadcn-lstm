@@ -19,6 +19,7 @@ import {
 import { AnimatedNumber } from '@/components/ui/animated-number';
 import { getTickerPrice } from '@/lib/binance';
 import { toast } from "sonner";
+import axios from 'axios';
 
 export interface AssetBinance {
   symbol: string
@@ -80,127 +81,174 @@ export default function Dashboard() {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-
-  // Símbolos que queremos seguir (igual que en market-data API, pero obtenidos directamente)
-  const MARKET_SYMBOLS = [
-    // Forex
-    { symbol: 'EURUSDT', name: 'Euro / US Dollar', category: 'Forex' },
-    { symbol: 'USDTCOP', name: 'Colombian Peso / US Dollar', category: 'Forex' },
-    { symbol: 'GBPUSDT', name: 'British Pound / US Dollar', category: 'Forex' },
-    { symbol: 'AUDUSDT', name: 'Australian Dollar / US Dollar', category: 'Forex' },
-    { symbol: 'USDCUSDT', name: 'US Dollar / Canadian Dollar', category: 'Forex' },
-    // Criptomonedas
-    { symbol: 'BTCUSDT', name: 'Bitcoin', category: 'Crypto' },
-    { symbol: 'ETHUSDT', name: 'Ethereum', category: 'Crypto' },
-    { symbol: 'BNBUSDT', name: 'BNB', category: 'Crypto' },
-    { symbol: 'SOLUSDT', name: 'Solana', category: 'Crypto' },
-    { symbol: 'ADAUSDT', name: 'Cardano', category: 'Crypto' },
-  ];
   
-  // Transformar datos de Binance al formato que usa tu aplicación
-  const transformTickerData = (ticker: AssetBinance, symbol: string, name: string, category: string): Asset => {
-    const priceChangePercent = parseFloat(ticker.priceChangePercent || '0');
-    return {
-      id: symbol,
-      name,
-      symbol,
-      category,
-      lastPrice: parseFloat(ticker.lastPrice || '0'),
-      change24h: priceChangePercent,
-      volume24h: (parseFloat(ticker.volume || '0') * parseFloat(ticker.weightedAvgPrice || '0')) || 0,
-      isFavorite: false,
-      marketCap: 0,
-      volatility: Math.abs(parseFloat(ticker.highPrice || '0') - parseFloat(ticker.lowPrice || '0')) / (parseFloat(ticker.lowPrice || '1') || 1) * 100,
-      trend: (priceChangePercent >= 0 ? 'up' : 'down'),
-      alerts: 0
-    };
-  };
-  
-  const fetchMarketData = async (isInitial = false) => {
-    if (isInitial) {
-      setIsLoading(true);
-    }
+  const fetchMarketData = useCallback(async () => {
+    setIsLoading(true);
+    const cacheKey = 'market-data-cache';
+    const cacheExpiry = 60 * 1000; // 60 segundos de caché
+    const now = Date.now();
     
     try {
-      const assetsData: Asset[] = [];
-      const prioritySymbols = MARKET_SYMBOLS.slice(0, 4); // Primero intentar con los 4 símbolos prioritarios
-      
-      // Intentar obtener datos para símbolos prioritarios primero
-      for (const { symbol, name, category } of prioritySymbols) {
+      // Verificar si tenemos datos en caché y si aún son válidos
+      const cachedData = localStorage.getItem(cacheKey);
+      if (cachedData) {
         try {
-          console.log(`Obteniendo datos para ${symbol}...`);
-          const ticker = await getTickerPrice(symbol);
-          
-          if (ticker) {
-            assetsData.push(transformTickerData(ticker, symbol, name, category));
+          const { data, timestamp } = JSON.parse(cachedData);
+          if (now - timestamp < cacheExpiry && Array.isArray(data) && data.length > 0) {
+            console.log('Usando datos de caché');
+            setAssets(data);
+            setFilteredAssets(data);
+            setIsLoading(false);
+            return;
           }
-        } catch (error) {
-          console.warn(`No se pudo obtener datos para ${symbol}:`, error);
-          // Continuar con el siguiente símbolo
+        } catch (e) {
+          console.warn('Error al leer caché:', e);
+          localStorage.removeItem(cacheKey);
         }
       }
       
-      // Si hay tiempo, intentar con el resto de símbolos
-      const remainingSymbols = MARKET_SYMBOLS.slice(4);
-      for (const { symbol, name, category } of remainingSymbols) {
-        try {
-          const ticker = await getTickerPrice(symbol);
-          if (ticker) {
-            assetsData.push(transformTickerData(ticker, symbol, name, category));
-          }
-        } catch (error) {
-          console.warn(`No se pudo obtener datos para ${symbol}:`, error);
+      // Si no hay caché válida, hacer petición a la API
+      console.log('Obteniendo datos del servidor...');
+      const response = await axios.get<Asset[]>('/api/dashboard/market-data', {
+        timeout: 8000, // 8 segundos de timeout
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
         }
+      });
+      
+      const assetsData = response.data;
+      
+      if (!assetsData || !Array.isArray(assetsData) || assetsData.length === 0) {
+        throw new Error('No se recibieron datos válidos del mercado');
       }
       
-      // Actualizar estado con los datos obtenidos
+      // Actualizar estado
       setAssets(assetsData);
       setFilteredAssets(assetsData);
       
-      // Solo cambiar el estado de carga si es la carga inicial
-      if (isInitial) {
-        setIsLoading(false);
-      }
+      // Guardar en caché
+      localStorage.setItem(cacheKey, JSON.stringify({
+        data: assetsData,
+        timestamp: now
+      }));
       
-      console.log('Datos cargados:', assetsData);
+      console.log(`Datos cargados (${assetsData.length} activos):`, assetsData);
       
-      if (assetsData.length === 0) {
-        throw new Error('No se pudieron obtener datos de mercado');
-      }
     } catch (error) {
       console.error('Error fetching market data:', error);
       
-      // Mostrar error al usuario
+      // Intentar usar datos en caché incluso si están vencidos
+      const cachedData = localStorage.getItem(cacheKey);
+      if (cachedData) {
+        try {
+          const { data } = JSON.parse(cachedData);
+          if (Array.isArray(data) && data.length > 0) {
+            setAssets(data);
+            setFilteredAssets(data);
+            toast.warning('Datos en caché', {
+              description: 'Se están mostrando datos en caché debido a un error en la conexión.',
+            });
+            setIsLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.warn('Error al leer caché de respaldo:', e);
+        }
+      }
+      
+      // Si no hay caché o está corrupta, intentar obtener datos directamente de Binance
+      try {
+        console.log('Intentando obtener datos directamente de Binance...');
+        const symbols = ['EURUSDT', 'BTCUSDT'];
+        const fallbackData: Asset[] = [];
+        
+        for (const symbol of symbols) {
+          try {
+            const ticker = await getTickerPrice(symbol);
+            if (ticker) {
+              const category = symbol.includes('BTC') ? 'Crypto' : 'Forex';
+              const name = symbol.includes('BTC') ? 'Bitcoin' : 'Euro / US Dollar';
+              
+              fallbackData.push({
+                id: symbol,
+                name,
+                symbol,
+                category,
+                lastPrice: parseFloat(ticker.lastPrice),
+                change24h: parseFloat(ticker.priceChangePercent),
+                volume24h: parseFloat(ticker.quoteVolume),
+                isFavorite: false,
+                marketCap: 0,
+                volatility: 0,
+                trend: parseFloat(ticker.priceChangePercent) >= 0 ? 'up' : 'down',
+                alerts: 0
+              });
+            }
+          } catch (e) {
+            console.warn(`Error obteniendo datos de Binance para ${symbol}:`, e);
+          }
+        }
+        
+        if (fallbackData.length > 0) {
+          setAssets(fallbackData);
+          setFilteredAssets(fallbackData);
+          toast.warning('Modo de respaldo', {
+            description: 'Usando datos directamente de Binance debido a problemas con la API.',
+          });
+          setIsLoading(false);
+          return;
+        }
+      } catch (fallbackError) {
+        console.error('Error en modo de respaldo:', fallbackError);
+      }
+      
+      // Si todo falla, mostrar error
       const errorMessage = error instanceof Error ? error.message : 'Error al cargar los datos del mercado';
-      toast?.error('Error de mercado', {
+      toast.error('Error de mercado', {
         description: errorMessage,
       });
-      
-      // Asegurarse de que el loading se desactive incluso si hay un error
-      if (isInitial) {
-        setIsLoading(false);
-      }
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, []);
 
   // Efecto para la carga inicial y actualizaciones periódicas
   useEffect(() => {
+    // Función para verificar la conexión
+    const checkConnection = async () => {
+      try {
+        await axios.head('/api/health-check', { timeout: 3000 });
+        return true;
+      } catch (error) {
+        console.warn('Error de conexión:', error);
+        return false;
+      }
+    };
+
     // Función para cargar datos iniciales
     const loadInitialData = async () => {
-      await fetchMarketData(true);
+      try {
+        await fetchMarketData();
+      } catch (error) {
+        console.error('Error cargando datos iniciales:', error);
+      }
     };
     
     // Cargar datos iniciales
     loadInitialData();
 
-    // Configurar actualización periódica (cada 30 segundos)
-    const intervalId = setInterval(() => {
-      fetchMarketData(false);
-    }, 30000);
+    // Configurar actualización periódica (cada 60 segundos)
+    const intervalId = setInterval(async () => {
+      const isOnline = await checkConnection();
+      if (isOnline) {
+        fetchMarketData();
+      }
+    }, 60000);
 
     // Limpiar intervalo al desmontar
     return () => clearInterval(intervalId);
-  }, []);
+  }, [fetchMarketData]);
 
   useEffect(() => {
     let filtered = assets;

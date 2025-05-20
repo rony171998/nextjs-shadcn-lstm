@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
 import { getTickerPrice } from '@/lib/binance';
+
 // Configuración para rutas dinámicas
 export const dynamic = 'force-dynamic';
+// Usar edge runtime para mejor rendimiento
 export const runtime = 'edge';
 
 // Deshabilitar caché para obtener datos frescos
 export const revalidate = 0;
+
+// Configuración de tiempo máximo de ejecución (10 segundos para evitar timeouts de Vercel)
+const MAX_EXECUTION_TIME_MS = 10000;
+const CONCURRENCY_LIMIT = 2; // Número máximo de peticiones concurrentes
 
 // Tipos de activos
 interface AssetSymbol {
@@ -52,6 +58,12 @@ const ALL_SYMBOLS: AssetSymbol[] = [
   { symbol: 'ADAUSDT', name: 'Cardano', category: 'Crypto' },
 ];
 
+// Agrupar símbolos por prioridad
+const SYMBOL_GROUPS = {
+  highPriority: PRIORITY_SYMBOLS,
+  mediumPriority: ALL_SYMBOLS.filter(s => !PRIORITY_SYMBOLS.some(ps => ps.symbol === s.symbol)),
+};
+
 // Transformar datos de Binance al formato de respuesta
 function transformTickerData(ticker: any, symbol: string, name: string, category: string): AssetData {
   const priceChangePercent = parseFloat(ticker.priceChangePercent || '0');
@@ -71,62 +83,81 @@ function transformTickerData(ticker: any, symbol: string, name: string, category
   };
 }
 
-export async function GET() {
-  console.log('Iniciando obtención de datos de mercado...');
-  const assetsData: AssetData[] = [];
+// Función para procesar lotes de símbolos con límite de concurrencia
+async function processBatch(
+  symbols: AssetSymbol[],
+  concurrencyLimit: number,
+  timeoutMs: number
+): Promise<AssetData[]> {
+  const results: AssetData[] = [];
   const startTime = Date.now();
-  const maxExecutionTime = 5000; // 5 segundos de tiempo máximo
   
-  try {
-    // Enfoque progresivo: primero obtener datos prioritarios
-    // Si queda tiempo, intentar obtener más datos
+  // Procesar en lotes
+  for (let i = 0; i < symbols.length; i += concurrencyLimit) {
+    // Verificar si hemos excedido el tiempo máximo de ejecución
+    if (Date.now() - startTime > timeoutMs) {
+      console.warn(`Tiempo de ejecución excedido al procesar lote ${i / concurrencyLimit + 1}`);
+      break;
+    }
     
-    // 1. Asegurar que tengamos al menos datos prioritarios
-    console.log('Obteniendo datos de símbolos prioritarios...');
-    for (const { symbol, name, category } of PRIORITY_SYMBOLS) {
+    const batch = symbols.slice(i, i + concurrencyLimit);
+    const batchPromises = batch.map(async ({ symbol, name, category }) => {
       try {
-        console.log(`Intentando obtener datos para ${symbol}`);
         const ticker = await getTickerPrice(symbol);
-        
         if (ticker) {
-          assetsData.push(transformTickerData(ticker, symbol, name, category));
-          console.log(`Datos obtenidos para ${symbol}`);
+          return transformTickerData(ticker, symbol, name, category);
         }
       } catch (error) {
-        console.warn(`No se pudo obtener datos para ${symbol}:`, error);
-        // Continuar con el siguiente símbolo prioritario
+        console.warn(`Error procesando ${symbol}:`, error);
+        return null;
       }
+      return null;
+    });
+    
+    const batchResults = await Promise.all(batchPromises);
+    results.push(...batchResults.filter(Boolean) as AssetData[]);
+    
+    // Pequeña pausa entre lotes para evitar rate limiting
+    if (i + concurrencyLimit < symbols.length) {
+      // Usar setTimeout estándar en lugar de timers/promises
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  }
+  
+  return results;
+}
+
+export async function GET(request: Request) {
+  const startTime = Date.now();
+  const remainingTime = MAX_EXECUTION_TIME_MS - 1000; // Dejar 1 segundo para procesamiento final
+  
+  try {
+    // Enfoque simplificado: obtener solo datos prioritarios para evitar timeouts
+    const highPriorityResults = await processBatch(
+      SYMBOL_GROUPS.highPriority,
+      CONCURRENCY_LIMIT,
+      remainingTime * 0.8 // Usar 80% del tiempo disponible para alta prioridad
+    );
+    
+    // Verificar si tenemos tiempo restante
+    const timeAfterHighPriority = Date.now();
+    const timeUsed = timeAfterHighPriority - startTime;
+    const timeRemaining = remainingTime - timeUsed;
+    
+    // Solo intentar obtener datos de prioridad media si hay suficiente tiempo
+    let mediumPriorityResults: AssetData[] = [];
+    if (timeRemaining > 2000 && highPriorityResults.length > 0) {
+      mediumPriorityResults = await processBatch(
+        SYMBOL_GROUPS.mediumPriority,
+        CONCURRENCY_LIMIT,
+        timeRemaining * 0.8
+      );
     }
     
-    // 2. Si tenemos tiempo restante, obtener símbolos adicionales
-    if (assetsData.length > 0 && (Date.now() - startTime) < maxExecutionTime) {
-      console.log('Obteniendo datos adicionales...');
-      const remainingSymbols = ALL_SYMBOLS.filter(s => 
-        !PRIORITY_SYMBOLS.some(ps => ps.symbol === s.symbol) ||
-        !assetsData.some(a => a.symbol === s.symbol)
-      );
-      
-      for (const { symbol, name, category } of remainingSymbols) {
-        // Verificar si nos estamos acercando al límite de tiempo
-        if ((Date.now() - startTime) > maxExecutionTime) {
-          console.log('Tiempo límite alcanzado, terminando recopilación de datos');
-          break;
-        }
-        
-        try {
-          const ticker = await getTickerPrice(symbol);
-          if (ticker) {
-            assetsData.push(transformTickerData(ticker, symbol, name, category));
-            console.log(`Datos adicionales obtenidos para ${symbol}`);
-          }
-        } catch (error) {
-          console.warn(`No se pudo obtener datos adicionales para ${symbol}:`, error);
-          // Continuar con el siguiente símbolo
-        }
-      }
-    }
-
-    console.log(`Datos obtenidos para ${assetsData.length} de ${ALL_SYMBOLS.length} símbolos`);
+    // Combinar resultados (omitimos baja prioridad para evitar timeouts)
+    const assetsData = [...highPriorityResults, ...mediumPriorityResults];
+    
+    console.log(`Datos obtenidos para ${assetsData.length} símbolos`);
     
     if (assetsData.length === 0) {
       console.error('No se pudo obtener datos para ningún símbolo');
@@ -136,17 +167,55 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json(assetsData);
+    return NextResponse.json(assetsData, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store'
+      },
+    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-    const errorStack = error instanceof Error ? error.stack : undefined;
     
     console.error('Error en market data API:', {
       message: errorMessage,
-      stack: errorStack,
       timestamp: new Date().toISOString()
     });
     
+    // Intentar devolver al menos un conjunto mínimo de datos
+    try {
+      // Intentar obtener datos solo para EURUSDT y BTCUSDT como último recurso
+      const fallbackSymbols = [
+        { symbol: 'EURUSDT', name: 'Euro / US Dollar', category: 'Forex' },
+        { symbol: 'BTCUSDT', name: 'Bitcoin', category: 'Crypto' }
+      ];
+      
+      const fallbackPromises = fallbackSymbols.map(async ({ symbol, name, category }) => {
+        try {
+          const ticker = await getTickerPrice(symbol);
+          if (ticker) {
+            return transformTickerData(ticker, symbol, name, category);
+          }
+        } catch {}
+        return null;
+      });
+      
+      const fallbackResults = (await Promise.all(fallbackPromises)).filter(Boolean) as AssetData[];
+      
+      if (fallbackResults.length > 0) {
+        console.log(`Recuperación de error: devolviendo ${fallbackResults.length} símbolos de respaldo`);
+        return NextResponse.json(fallbackResults, {
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        });
+      }
+    } catch {}
+    
+    // Si todo falla, devolver error
     return NextResponse.json(
       { 
         error: 'Error al obtener los datos del mercado',
