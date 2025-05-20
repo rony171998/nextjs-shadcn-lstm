@@ -382,22 +382,22 @@ export default function LandingPage() {
                 title: currentTranslation.blogsSection.blog1.title,
                 desc: currentTranslation.blogsSection.blog1.desc,
                 date: currentTranslation.blogsSection.blog1.date,
-                img: '/blog1.jpg',
-                link: '#'
+                img: '/blog1.png',
+                link: '/dashboard'
               },
               {
                 title: currentTranslation.blogsSection.blog2.title,
                 desc: currentTranslation.blogsSection.blog2.desc,
                 date: currentTranslation.blogsSection.blog2.date,
-                img: '/blog2.jpg',
-                link: '#'
+                img: '/blog2.png',
+                link: '/dashboard'
               },
               {
                 title: currentTranslation.blogsSection.blog3.title,
                 desc: currentTranslation.blogsSection.blog3.desc,
                 date: currentTranslation.blogsSection.blog3.date,
-                img: '/blog3.jpg',
-                link: '#'
+                img: '/blog3.png',
+                link: '/dashboard'
               }
             ].map((post, idx) => (
               <div key={idx} className="bg-card rounded-xl border border-border shadow-md overflow-hidden flex flex-col">
