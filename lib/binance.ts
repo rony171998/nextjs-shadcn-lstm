@@ -3,11 +3,16 @@ import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
 // Configuración de axios para la API de Binance
 const binanceApi: AxiosInstance = axios.create({
   baseURL: 'https://api.binance.com/api/v3',
-  timeout: 10000, // 10 segundos de timeout
+  timeout: 30000, // 30 segundos de timeout (aumentado para producción)
   headers: {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
-  }
+  },
+  // Parámetros específicos para producción vs desarrollo
+  ...(process.env.VERCEL_ENV === 'production' ? {
+    // En producción, aumentamos el número de reintentos y timeouts
+    timeout: 35000,
+  } : {})
 });
 
 // Interceptor para manejar errores globalmente
@@ -71,7 +76,7 @@ export interface BinanceKline {
   ignore: string;
 }
 
-export async function getTickerPrice(symbol: string, retries = 3): Promise<BinanceTicker | null> {
+export async function getTickerPrice(symbol: string, retries = 5): Promise<BinanceTicker | null> {
   try {
     const response = await binanceApi.get<BinanceTicker>(`/ticker/24hr?symbol=${symbol}`);
     return response.data;
@@ -88,10 +93,12 @@ export async function getTickerPrice(symbol: string, retries = 3): Promise<Binan
         },
       });
       
-      // Si es un error de rate limit y aún tenemos reintentos disponibles
-      if (error.response?.status === 429 && retries > 0) {
+      // Si es un error de rate limit, servicio no disponible u otro error y aún tenemos reintentos disponibles
+      if ((error.response?.status === 429 || error.response?.status === 503 || error.response?.status === 500) && retries > 0) {
         console.warn(`Rate limit alcanzado para ${symbol}, reintentando... (${retries} intentos restantes)`);
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar 1 segundo
+        // Esperar más tiempo entre reintentos (aumenta progresivamente)
+        const waitTime = (5 - retries + 1) * 1000; // 1s, 2s, 3s, 4s, 5s
+        await new Promise(resolve => setTimeout(resolve, waitTime));
         return getTickerPrice(symbol, retries - 1);
       }
     } else {

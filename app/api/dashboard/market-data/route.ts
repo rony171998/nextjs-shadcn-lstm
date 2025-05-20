@@ -9,9 +9,9 @@ export const runtime = 'edge';
 // Deshabilitar caché para obtener datos frescos
 export const revalidate = 0;
 
-// Configuración de tiempo máximo de ejecución (10 segundos para evitar timeouts de Vercel)
-const MAX_EXECUTION_TIME_MS = 10000;
-const CONCURRENCY_LIMIT = 2; // Número máximo de peticiones concurrentes
+// Configuración de tiempo máximo de ejecución (ajustada para evitar timeouts de Vercel)
+const MAX_EXECUTION_TIME_MS = process.env.VERCEL_ENV === 'production' ? 8000 : 12000;
+const CONCURRENCY_LIMIT = process.env.VERCEL_ENV === 'production' ? 1 : 2; // Reducir concurrencia en producción
 
 // Tipos de activos
 interface AssetSymbol {
@@ -58,10 +58,15 @@ const ALL_SYMBOLS: AssetSymbol[] = [
   { symbol: 'ADAUSDT', name: 'Cardano', category: 'Crypto' },
 ];
 
-// Agrupar símbolos por prioridad
+// Agrupar símbolos por prioridad y entorno
 const SYMBOL_GROUPS = {
-  highPriority: PRIORITY_SYMBOLS,
-  mediumPriority: ALL_SYMBOLS.filter(s => !PRIORITY_SYMBOLS.some(ps => ps.symbol === s.symbol)),
+  // En producción, tenemos una estrategia más conservadora
+  highPriority: process.env.VERCEL_ENV === 'production' 
+    ? PRIORITY_SYMBOLS.slice(0, 2) // Solo los 2 primeros símbolos en producción
+    : PRIORITY_SYMBOLS,
+  mediumPriority: process.env.VERCEL_ENV === 'production'
+    ? [...PRIORITY_SYMBOLS.slice(2), ...ALL_SYMBOLS.filter(s => !PRIORITY_SYMBOLS.some(ps => ps.symbol === s.symbol))]
+    : ALL_SYMBOLS.filter(s => !PRIORITY_SYMBOLS.some(ps => ps.symbol === s.symbol)),
 };
 
 // Transformar datos de Binance al formato de respuesta
@@ -87,20 +92,24 @@ function transformTickerData(ticker: any, symbol: string, name: string, category
 async function processBatch(
   symbols: AssetSymbol[],
   concurrencyLimit: number,
-  timeoutMs: number
+  timeoutMs: number,
+  isProduction: boolean = process.env.VERCEL_ENV === 'production'
 ): Promise<AssetData[]> {
   const results: AssetData[] = [];
   const startTime = Date.now();
   
+  // En producción, limitar aún más el número de símbolos a procesar
+  const symbolsToProcess = isProduction && symbols.length > 4 ? symbols.slice(0, 4) : symbols;
+  
   // Procesar en lotes
-  for (let i = 0; i < symbols.length; i += concurrencyLimit) {
+  for (let i = 0; i < symbolsToProcess.length; i += concurrencyLimit) {
     // Verificar si hemos excedido el tiempo máximo de ejecución
     if (Date.now() - startTime > timeoutMs) {
       console.warn(`Tiempo de ejecución excedido al procesar lote ${i / concurrencyLimit + 1}`);
       break;
     }
     
-    const batch = symbols.slice(i, i + concurrencyLimit);
+    const batch = symbolsToProcess.slice(i, i + concurrencyLimit);
     const batchPromises = batch.map(async ({ symbol, name, category }) => {
       try {
         const ticker = await getTickerPrice(symbol);
@@ -117,10 +126,10 @@ async function processBatch(
     const batchResults = await Promise.all(batchPromises);
     results.push(...batchResults.filter(Boolean) as AssetData[]);
     
-    // Pequeña pausa entre lotes para evitar rate limiting
-    if (i + concurrencyLimit < symbols.length) {
-      // Usar setTimeout estándar en lugar de timers/promises
-      await new Promise(resolve => setTimeout(resolve, 100));
+    // Pausas entre lotes para evitar rate limiting (más en producción)
+    if (i + concurrencyLimit < symbolsToProcess.length) {
+      const pauseTime = isProduction ? 300 : 100; // Pausa más larga en producción
+      await new Promise(resolve => setTimeout(resolve, pauseTime));
     }
   }
   
@@ -132,11 +141,13 @@ export async function GET(request: Request) {
   const remainingTime = MAX_EXECUTION_TIME_MS - 1000; // Dejar 1 segundo para procesamiento final
   
   try {
-    // Enfoque simplificado: obtener solo datos prioritarios para evitar timeouts
+    // Enfoque adaptado al entorno: más conservador en producción
+    const isProduction = process.env.VERCEL_ENV === 'production';
     const highPriorityResults = await processBatch(
       SYMBOL_GROUPS.highPriority,
       CONCURRENCY_LIMIT,
-      remainingTime * 0.8 // Usar 80% del tiempo disponible para alta prioridad
+      isProduction ? remainingTime * 0.9 : remainingTime * 0.8, // Dar más tiempo en producción
+      isProduction
     );
     
     // Verificar si tenemos tiempo restante
@@ -146,11 +157,19 @@ export async function GET(request: Request) {
     
     // Solo intentar obtener datos de prioridad media si hay suficiente tiempo
     let mediumPriorityResults: AssetData[] = [];
-    if (timeRemaining > 2000 && highPriorityResults.length > 0) {
+    // En producción, requerimos más tiempo disponible y ser más conservadores
+    const timeThreshold = isProduction ? 3000 : 2000;
+    if (timeRemaining > timeThreshold && highPriorityResults.length > 0) {
+      // En producción, solo intentar obtener 1-2 símbolos adicionales máximo
+      const mediumPrioritySymbols = isProduction
+        ? SYMBOL_GROUPS.mediumPriority.slice(0, 2)
+        : SYMBOL_GROUPS.mediumPriority;
+      
       mediumPriorityResults = await processBatch(
-        SYMBOL_GROUPS.mediumPriority,
-        CONCURRENCY_LIMIT,
-        timeRemaining * 0.8
+        mediumPrioritySymbols,
+        isProduction ? 1 : CONCURRENCY_LIMIT, // En producción, procesar uno a la vez
+        timeRemaining * (isProduction ? 0.7 : 0.8),
+        isProduction
       );
     }
     
@@ -185,23 +204,46 @@ export async function GET(request: Request) {
     
     // Intentar devolver al menos un conjunto mínimo de datos
     try {
-      // Intentar obtener datos solo para EURUSDT y BTCUSDT como último recurso
+      // Intentar obtener datos solo para símbolos críticos como último recurso
+      // En producción, limitar a un símbolo a la vez para maximizar éxito
       const fallbackSymbols = [
         { symbol: 'EURUSDT', name: 'Euro / US Dollar', category: 'Forex' },
         { symbol: 'BTCUSDT', name: 'Bitcoin', category: 'Crypto' }
       ];
+      let fallbackResults: AssetData[] = [];
       
-      const fallbackPromises = fallbackSymbols.map(async ({ symbol, name, category }) => {
-        try {
-          const ticker = await getTickerPrice(symbol);
-          if (ticker) {
-            return transformTickerData(ticker, symbol, name, category);
-          }
-        } catch {}
-        return null;
-      });
-      
-      const fallbackResults = (await Promise.all(fallbackPromises)).filter(Boolean) as AssetData[];
+      if (process.env.VERCEL_ENV === 'production') {
+        // Ejecución secuencial para producción
+        for (const { symbol, name, category } of fallbackSymbols) {
+          try {
+            const ticker = await getTickerPrice(symbol);
+            if (ticker) {
+              const data = transformTickerData(ticker, symbol, name, category);
+              fallbackResults.push(data);
+              // En producción, si tenemos al menos un resultado, podemos salir
+              // para asegurar que devolvemos algo útil
+              if (fallbackResults.length > 0) {
+                break;
+              }
+            }
+          } catch {}
+          // Pequeña pausa entre intentos
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      } else {
+        // Ejecución en paralelo para desarrollo
+        const fallbackPromises = fallbackSymbols.map(async ({ symbol, name, category }) => {
+          try {
+            const ticker = await getTickerPrice(symbol);
+            if (ticker) {
+              return transformTickerData(ticker, symbol, name, category);
+            }
+          } catch {}
+          return null;
+        });
+        
+        fallbackResults = (await Promise.all(fallbackPromises)).filter(Boolean) as AssetData[];
+      }
       
       if (fallbackResults.length > 0) {
         console.log(`Recuperación de error: devolviendo ${fallbackResults.length} símbolos de respaldo`);
