@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
+import axios from 'axios';
 
 const sql = neon(process.env.DATABASE_URL!);
 
@@ -43,20 +44,24 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Missing model_name' }, { status: 400 });
     }
 
+    // Using the existing neon SQL client for database queries
     const result = await sql`
       SELECT * FROM predictions 
       WHERE ticker = ${ticker} 
       AND model_name = ${model_name}
       ORDER BY fecha DESC
     `;
-    console.log(result);
-
+    
+    console.log('Prediction result:', result);
     return NextResponse.json(result);
   } catch (error) {
     console.error('Error in prediction:', error);
     return NextResponse.json(
-      { error: 'Error generating prediction' },
+      { 
+        error: 'Error generating prediction',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
-} 
+}
