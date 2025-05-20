@@ -13,9 +13,6 @@ const nextConfig = {
   // Configuración para resolver problemas de timeout
   experimental: {
     largePageDataBytes: 128 * 1000, // 128KB
-    serverComponentsExternalPackages: ['@tremor/react'],
-    // Aumentar el tiempo de espera para la generación estática
-    staticPageGenerationTimeout: 180, // 3 minutos
   },
   // Deshabilitar la generación estática para las rutas API
   output: 'standalone',
