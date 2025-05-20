@@ -25,6 +25,10 @@ export type Datapredictions = {
   created_at: Date;
 };
 
+// Indicar que esta ruta es dinámica y no debe generarse estáticamente
+export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);

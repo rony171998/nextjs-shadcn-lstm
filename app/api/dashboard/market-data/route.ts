@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getTickerPrice } from '@/lib/binance';
 
+// Configuración para rutas dinámicas
+export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
 export const revalidate = 0; // Desactiva el caché para obtener datos frescos
 
 export async function GET() {

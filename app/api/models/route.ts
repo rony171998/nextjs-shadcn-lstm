@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 
+// Configuración para rutas dinámicas
+export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
+
 const NEXT_PUBLIC_BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 export async function GET() {

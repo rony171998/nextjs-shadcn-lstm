@@ -7,6 +7,10 @@ import {
     getEurUsdYearlyData,
 } from "@/lib/db";
 
+// Indicar que esta ruta es dinámica y no debe generarse estáticamente
+export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
+
 function calculateRSI(
     data: Data[],
     period: number = 14
