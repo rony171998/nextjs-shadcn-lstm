@@ -1,28 +1,5 @@
 {
-  "version": 2,
   "buildCommand": "bun run build",
-  "outputDirectory": ".next",
   "framework": "nextjs",
-  "regions": ["iad1"],
-  "env": {
-    "NODE_ENV": "production",
-    "NEXT_TELEMETRY_DISABLED": "1"
-  },
-  "functions": {
-    "api/**/*.js": {
-      "maxDuration": 30
-    },
-    "app/**/*.js": {
-      "maxDuration": 30
-    }
-  },
-  "build": {
-    "env": {
-      "NEXT_PUBLIC_VERCEL_ENV": "production"
-    }
-  },
-  "github": {
-    "silent": true,
-    "autoJobCancelation": true
-  }
+  "outputDirectory": ".next"
 }
