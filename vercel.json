@@ -7,5 +7,22 @@
   "env": {
     "NODE_ENV": "production",
     "NEXT_TELEMETRY_DISABLED": "1"
+  },
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 30
+    },
+    "app/**/*.js": {
+      "maxDuration": 30
+    }
+  },
+  "build": {
+    "env": {
+      "NEXT_PUBLIC_VERCEL_ENV": "production"
+    }
+  },
+  "github": {
+    "silent": true,
+    "autoJobCancelation": true
   }
 }
