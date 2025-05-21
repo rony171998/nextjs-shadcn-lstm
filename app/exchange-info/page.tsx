@@ -3,6 +3,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import axios from 'axios';
 
+// Ensure this page is server-rendered on each request
+export const dynamic = 'force-dynamic';
+
 type AxiosError = {
   response?: {
     status: number;
@@ -65,14 +68,24 @@ type ExchangeInfo = {
 
 async function getExchangeInfo(): Promise<ExchangeInfo> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ||
-      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` :
-        `http://localhost:${process.env.PORT || '4000'}`);
+    // Use relative URL when in the browser, absolute URL when on the server
+    const isServer = typeof window === 'undefined';
+    let apiUrl: string;
     
-    console.log('Fetching exchange info from:', `${baseUrl}/api/exchange-info`);
+    if (isServer) {
+      // On the server, use the full URL
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL ||
+        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` :
+          `http://localhost:${process.env.PORT || '4000'}`);
+      apiUrl = `${baseUrl}/api/exchange-info`;
+    } else {
+      // In the browser, use a relative URL
+      apiUrl = '/api/exchange-info';
+    }
     
-    // First try to fetch from our API
-    const response = await axios.get(`${baseUrl}/api/exchange-info`, {
+    console.log(`Fetching exchange info from: ${apiUrl}`);
+    
+    const response = await axios.get(apiUrl, {
       timeout: 10000, // 10 second timeout
       headers: {
         'Cache-Control': 'no-cache'
