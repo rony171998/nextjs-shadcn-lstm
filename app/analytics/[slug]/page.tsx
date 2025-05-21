@@ -224,8 +224,9 @@ export default async function Page({ params }: { params: { slug: string } }) {
         </div>
       </div>
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching klines data:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     return (
       <div className="container mx-auto p-4">
         <Card className="bg-card/50 backdrop-blur-sm">
@@ -237,7 +238,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
               Failed to load chart data. Please try again later.
             </p>
             <AlertDescription>
-              {error?.message}
+              {errorMessage}
             </AlertDescription>
           </CardContent>
         </Card>
