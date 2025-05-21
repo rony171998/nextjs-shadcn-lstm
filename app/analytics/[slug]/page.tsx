@@ -35,10 +35,20 @@ export default async function Page({ params }: { params: { slug: string } }) {
   const symbol = params.slug.toUpperCase() || 'EURUSDT';
   
   try {
+    // Construct the base URL for the API
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+                  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+                  `http://localhost:${process.env.PORT || '3000'}`);
+    
     // Fetch klines data from the API
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:'+process.env.PORT}/api/klines?symbol=${symbol}&interval=1h&limit=100`,
-      { next: { revalidate: 300 } } // Revalidate every 5 minutes
+      `${baseUrl}/api/klines?symbol=${symbol}&interval=1h&limit=100`,
+      { 
+        next: { revalidate: 300 }, // Revalidate every 5 minutes
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
     );
     
     if (!response.ok) {
