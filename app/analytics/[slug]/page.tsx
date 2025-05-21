@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { TradingViewChart } from "@/components/ui/tradingview-chart";
 import { LineChart, BarChart2, RefreshCw } from "lucide-react";
 import type { Data } from "@/lib/db";
-import { AlertDescription } from "@/components/ui/alert";
 import axios from "axios";
 
 interface KlineData {
@@ -38,7 +37,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
     // Construct the base URL for the API
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ||
         (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` :
-            `http://localhost:${process.env.PORT || '3000'}`);
+            `http://localhost:${process.env.PORT || '4000'}`);
 
     // Fetch klines data from the API using Axios
     let klines: KlineData[] = [];

@@ -65,22 +65,35 @@ type ExchangeInfo = {
 
 async function getExchangeInfo(): Promise<ExchangeInfo> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:'+process.env.PORT;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` :
+        `http://localhost:${process.env.PORT || '4000'}`);
+    
+    console.log('Fetching exchange info from:', `${baseUrl}/api/exchange-info`);
+    
     const response = await axios.get(`${baseUrl}/api/exchange-info`, {
       // Axios doesn't support next.revalidate directly, but we can use headers
       headers: {
         'Cache-Control': 's-maxage=60, stale-while-revalidate'
-      }
+      },
+      validateStatus: () => true // Ensure we get the response even if it's an error
     });
-    
-    if (!response.data.success) {
-      throw new Error(response.data.message || 'Failed to fetch exchange info');
+
+    if (!response.data || !response.data.success) {
+      const errorMessage = response.data?.message || 'Failed to fetch exchange info';
+      console.error('API Error:', errorMessage);
+      throw new Error(errorMessage);
     }
-    
+
+    if (!response.data.data) {
+      console.error('No data in response:', response.data);
+      throw new Error('No data received from the server');
+    }
+
     return response.data.data;
   } catch (error) {
     let errorMessage = 'Failed to fetch exchange info';
-    
+
     if (isAxiosError(error)) {
       const axiosError = error as AxiosError;
       // Handle Axios specific errors
@@ -88,8 +101,8 @@ async function getExchangeInfo(): Promise<ExchangeInfo> {
         // The request was made and the server responded with a status code
         // that falls out of the range of 2xx
         const responseData = axiosError.response.data as { message?: string };
-        errorMessage = responseData?.message || 
-                     `Error ${axiosError.response.status}: ${axiosError.response.statusText}`;
+        errorMessage = responseData?.message ||
+          `Error ${axiosError.response.status}: ${axiosError.response.statusText}`;
       } else if (axiosError.request) {
         // The request was made but no response was received
         errorMessage = 'No response received from the server';
@@ -100,38 +113,19 @@ async function getExchangeInfo(): Promise<ExchangeInfo> {
     } else if (error instanceof Error) {
       errorMessage = error.message;
     }
-    
+
     throw new Error(errorMessage);
   }
 }
 
 export default async function ExchangeInfoPage() {
-  let data: ExchangeInfo;
-  
-  try {
-    data = await getExchangeInfo();
-  } catch (error) {
-    return (
-      <Card className="border-destructive">
-        <CardHeader>
-          <CardTitle>Error</CardTitle>
-          <CardDescription>Failed to load exchange information</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-destructive">
-            {error instanceof Error ? error.message : 'An unknown error occurred'}
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const data: ExchangeInfo = await getExchangeInfo();
 
   return (
     <div className="container mx-auto py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Binance Exchange Information</h1>
         <p className="text-muted-foreground">
-          Last updated: {formatDate(data.serverTime)}
+          Last updated: {data?.serverTime ? formatDate(data.serverTime) : 'N/A'}
         </p>
       </div>
 
@@ -139,7 +133,7 @@ export default async function ExchangeInfoPage() {
         <TabsList className="grid w-full grid-cols-3 mb-6 max-w-md">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="rateLimits">Rate Limits</TabsTrigger>
-          <TabsTrigger value="markets">Markets ({data.symbols.length})</TabsTrigger>
+          <TabsTrigger value="markets">Markets ({data?.symbols.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -152,22 +146,22 @@ export default async function ExchangeInfoPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="p-4 border rounded-lg">
                   <h3 className="text-sm font-medium text-muted-foreground">Server Time</h3>
-                  <p className="text-lg font-semibold">{formatDate(data.serverTime)}</p>
+                  <p className="text-lg font-semibold">{formatDate(data?.serverTime)}</p>
                 </div>
                 <div className="p-4 border rounded-lg">
                   <h3 className="text-sm font-medium text-muted-foreground">Timezone</h3>
-                  <p className="text-lg font-semibold">{data.timezone}</p>
+                  <p className="text-lg font-semibold">{data?.timezone}</p>
                 </div>
                 <div className="p-4 border rounded-lg">
                   <h3 className="text-sm font-medium text-muted-foreground">Total Markets</h3>
-                  <p className="text-lg font-semibold">{data.symbols.length}</p>
+                  <p className="text-lg font-semibold">{data?.symbols.length}</p>
                 </div>
               </div>
-              
+
               <div className="mt-6">
                 <h3 className="text-lg font-semibold mb-3">Trading Pairs</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {data.symbols.slice(0, 6).map((symbol) => (
+                  {data?.symbols.slice(0, 6).map((symbol) => (
                     <Card key={symbol.symbol}>
                       <CardHeader className="p-4">
                         <div className="flex justify-between items-center">
@@ -205,7 +199,7 @@ export default async function ExchangeInfoPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {data.rateLimits.map((limit, index) => (
+                    {data?.rateLimits.map((limit, index) => (
                       <tr key={index}>
                         <td className="px-4 py-2">{limit.rateLimitType}</td>
                         <td className="px-4 py-2">
@@ -230,7 +224,7 @@ export default async function ExchangeInfoPage() {
                   <CardDescription>Available trading pairs on Binance</CardDescription>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  Showing {Math.min(50, data.symbols.length)} of {data.symbols.length} pairs
+                  Showing {Math.min(50, data?.symbols?.length)} of {data?.symbols?.length} pairs
                 </div>
               </div>
             </CardHeader>
@@ -247,7 +241,7 @@ export default async function ExchangeInfoPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {data.symbols.slice(0, 50).map((symbol) => (
+                    {data?.symbols?.slice(0, 50).map((symbol) => (
                       <tr key={symbol.symbol} className="hover:bg-muted/50">
                         <td className="px-4 py-2 font-medium">{symbol.symbol}</td>
                         <td className="px-4 py-2 text-muted-foreground">

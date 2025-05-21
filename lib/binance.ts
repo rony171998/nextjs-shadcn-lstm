@@ -145,17 +145,62 @@ export async function getKlines(
   }
 }
 
-export async function getExchangeInfo(retries = 3) {
+export interface ExchangeInfo {
+  timezone: string;
+  serverTime: number;
+  rateLimits: Array<{
+    rateLimitType: string;
+    interval: string;
+    intervalNum: number;
+    limit: number;
+  }>;
+  symbols: Array<{
+    symbol: string;
+    status: string;
+    baseAsset: string;
+    quoteAsset: string;
+    isSpotTradingAllowed: boolean;
+    isMarginTradingAllowed: boolean;
+    orderTypes: string[];
+    filters: any[];
+  }>;
+}
+
+export async function getExchangeInfo(retries = 3): Promise<ExchangeInfo> {
   try {
     const response = await binanceApi.get('/exchangeInfo');
-    return response.data;
+    
+    if (!response.data) {
+      throw new Error('No data received from Binance API');
+    }
+    
+    // Transform the response to match our expected format
+    const formattedData: ExchangeInfo = {
+      timezone: 'UTC', // Binance uses UTC
+      serverTime: response.data.serverTime,
+      rateLimits: response.data.rateLimits || [],
+      symbols: (response.data.symbols || []).map((symbol: any) => ({
+        symbol: symbol.symbol,
+        status: symbol.status,
+        baseAsset: symbol.baseAsset,
+        quoteAsset: symbol.quoteAsset,
+        isSpotTradingAllowed: symbol.isSpotTradingAllowed,
+        isMarginTradingAllowed: symbol.isMarginTradingAllowed,
+        orderTypes: symbol.orderTypes || [],
+        filters: symbol.filters || []
+      }))
+    };
+    
+    return formattedData;
+    
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 429 && retries > 0) {
-      console.warn('Rate limit alcanzado para exchangeInfo, reintentando...');
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar 1 segundo
+      await new Promise(resolve => setTimeout(resolve, 1000));
       return getExchangeInfo(retries - 1);
     }
-    console.error('Error al obtener la información del exchange:', error);
-    throw error; // Relanzar el error para que el llamador pueda manejarlo
+    
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error fetching exchange info:', errorMessage);
+    throw new Error(`Failed to fetch exchange info: ${errorMessage}`);
   }
 }
