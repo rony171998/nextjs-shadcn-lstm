@@ -7,6 +7,7 @@ const binanceApi: AxiosInstance = axios.create({
   headers: {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
+    'X-MBX-APIKEY': process.env.BINANCE_API_KEY || '',
   },
   // Parámetros específicos para producción vs desarrollo
   ...(process.env.VERCEL_ENV === 'production' ? {
