@@ -71,16 +71,23 @@ async function getExchangeInfo(): Promise<ExchangeInfo> {
     
     console.log('Fetching exchange info from:', `${baseUrl}/api/exchange-info`);
     
+    // First try to fetch from our API
     const response = await axios.get(`${baseUrl}/api/exchange-info`, {
-      // Axios doesn't support next.revalidate directly, but we can use headers
+      timeout: 10000, // 10 second timeout
       headers: {
-        'Cache-Control': 's-maxage=60, stale-while-revalidate'
+        'Cache-Control': 'no-cache'
       },
-      validateStatus: () => true // Ensure we get the response even if it's an error
+      validateStatus: (status) => status < 500 // Don't throw for 4xx errors
     });
 
-    if (!response.data || !response.data.success) {
-      const errorMessage = response.data?.message || 'Failed to fetch exchange info';
+    console.log('API Response status:', response.status);
+    
+    if (!response.data) {
+      throw new Error('No data received from the server');
+    }
+
+    if (!response.data.success) {
+      const errorMessage = response.data.error || 'Failed to fetch exchange info';
       console.error('API Error:', errorMessage);
       throw new Error(errorMessage);
     }

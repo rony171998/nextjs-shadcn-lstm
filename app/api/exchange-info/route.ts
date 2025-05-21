@@ -19,8 +19,6 @@ export async function GET() {
       throw new Error('No data returned from Binance API');
     }
 
-    console.log('[/api/exchange-info] Successfully fetched exchange info');
-    
     // Return the exchange info in the response
     const response = {
       success: true,
@@ -32,14 +30,17 @@ export async function GET() {
     return NextResponse.json(response);
     
   } catch (error) {
+    console.error('[/api/exchange-info] Error:', error);
+    
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[/api/exchange-info] Error:', errorMessage);
     
     return NextResponse.json(
       { 
         success: false,
-        error: 'Failed to fetch exchange info',
-        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' 
+          ? (error instanceof Error ? error.stack : undefined) 
+          : undefined
       },
       { status: 500 }
     );
