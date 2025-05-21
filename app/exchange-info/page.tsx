@@ -65,7 +65,7 @@ type ExchangeInfo = {
 
 async function getExchangeInfo(): Promise<ExchangeInfo> {
   try {
-    const baseUrl = 'http://localhost:'+process.env.PORT;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:'+process.env.PORT;
     const response = await axios.get(`${baseUrl}/api/exchange-info`, {
       // Axios doesn't support next.revalidate directly, but we can use headers
       headers: {

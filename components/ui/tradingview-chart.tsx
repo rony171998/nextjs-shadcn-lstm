@@ -1,3 +1,5 @@
+'use client'
+
 import { createChart, ColorType, IChartApi, Time, CandlestickData, LineData, CandlestickSeries, LineSeries, BarSeries, AreaSeries } from "lightweight-charts"
 import { Data } from "@/lib/db"
 import { Datapredictions } from "@/app/api/predict/route"

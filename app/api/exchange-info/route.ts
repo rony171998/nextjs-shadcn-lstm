@@ -9,12 +9,8 @@ export const revalidate = 0;
 
 export async function GET() {
   try {
-    console.log('Fetching exchange info from Binance...');
     const exchangeInfo = await getExchangeInfo();
-    
-    // Log the exchange info to the server console
-    console.log('Binance Exchange Info:', JSON.stringify(exchangeInfo, null, 2));
-    
+
     // Return the exchange info in the response
     return NextResponse.json({
       success: true,
@@ -23,7 +19,6 @@ export async function GET() {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Error fetching exchange info:', error);
     
     return NextResponse.json(
       { 
@@ -35,3 +30,5 @@ export async function GET() {
     );
   }
 }
+
+
