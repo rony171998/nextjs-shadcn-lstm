@@ -6,8 +6,7 @@ const binanceApi: AxiosInstance = axios.create({
   timeout: 30000, // 30 segundos de timeout (aumentado para producción)
   headers: {
     'Accept': 'application/json',
-    'Content-Type': 'application/json',
-    'X-MBX-APIKEY': process.env.BINANCE_API_KEY || '',
+    'Content-Type': 'application/json'
   },
   // Parámetros específicos para producción vs desarrollo
   ...(process.env.VERCEL_ENV === 'production' ? {
