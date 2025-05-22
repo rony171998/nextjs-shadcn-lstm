@@ -6,21 +6,6 @@ import { LineChart, BarChart2, RefreshCw } from "lucide-react";
 import type { Data } from "@/lib/db";
 import axios from "axios";
 
-interface KlineData {
-    openTime: number;
-    open: string;
-    high: string;
-    low: string;
-    close: string;
-    volume: string;
-    closeTime: number;
-    quoteAssetVolume: string;
-    numberOfTrades: number;
-    takerBuyBaseAssetVolume: string;
-    takerBuyQuoteAssetVolume: string;
-    ignore: string;
-}
-
 const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleDateString('es-ES', {
         day: '2-digit',
@@ -43,7 +28,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
     let klines: Data[] = [];
     
     try {
-      const response = await axios.get<{ success: boolean; data: Data[]; error?: string }>(
+      const response = await axios.get<Data[]>(
         `${baseUrl}/api/eur-usd`,
         {
           params: {
@@ -52,11 +37,13 @@ export default async function Page({ params }: { params: { slug: string } }) {
           },
           headers: {
             'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
           }
         }
       );
 
-      klines = response.data || [];
+      klines = response.data;
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const axiosError = error;
