@@ -24,5 +24,5 @@ const nextConfig = {
   productionBrowserSourceMaps: false,
 };
 
-// Exportar la configuración directamente sin Sentry
-module.exports = nextConfig;
+// Export the configuration using ES modules syntax
+export default nextConfig;

@@ -1,10 +1,5 @@
 import { NextResponse } from 'next/server';
 
-// Configuración para rutas dinámicas
-export const dynamic = 'force-dynamic';
-export const runtime = 'edge';
-export const revalidate = 3600; // Actualizar cada hora
-
 export interface NewsItem {
   id: string;
   title: string;

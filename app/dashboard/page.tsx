@@ -17,48 +17,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AnimatedNumber } from '@/components/ui/animated-number';
-import { getTickerPrice } from '@/lib/binance';
 import { toast } from "sonner";
 import axios from 'axios';
-
-export interface AssetBinance {
-  symbol: string
-  priceChange: string
-  priceChangePercent: string
-  weightedAvgPrice: string
-  prevClosePrice: string
-  lastPrice: string
-  lastQty: string
-  bidPrice: string
-  bidQty: string
-  askPrice: string
-  askQty: string
-  openPrice: string
-  highPrice: string
-  lowPrice: string
-  volume: string
-  quoteVolume: string
-  openTime: number
-  closeTime: number
-  firstId: number
-  lastId: number
-  count: number
-}
-
-interface Asset {
-  id: string;
-  name: string;
-  symbol: string;
-  category: string;
-  lastPrice: number;
-  change24h: number;
-  volume24h: number;
-  isFavorite: boolean;
-  marketCap?: number;
-  volatility?: number;
-  trend?: 'up' | 'down' | 'neutral';
-  alerts?: number;
-}
+import { MarketData } from '../api/dashboard/market-data/route';
 
 interface NewsItem {
   id: string;
@@ -73,8 +34,8 @@ interface NewsItem {
 
 export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [filteredAssets, setFilteredAssets] = useState<Asset[]>([]);
+  const [assets, setAssets] = useState<MarketData[]>([]);
+  const [filteredAssets, setFilteredAssets] = useState<MarketData[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('Forex');
   const [sortBy, setSortBy] = useState<string>('marketCap');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -84,130 +45,41 @@ export default function Dashboard() {
   
   const fetchMarketData = useCallback(async () => {
     setIsLoading(true);
-    const cacheKey = 'market-data-cache';
-    const cacheExpiry = 60 * 1000; // 60 segundos de caché
-    const now = Date.now();
     
     try {
-      // Verificar si tenemos datos en caché y si aún son válidos
-      const cachedData = localStorage.getItem(cacheKey);
-      if (cachedData) {
-        try {
-          const { data, timestamp } = JSON.parse(cachedData);
-          if (now - timestamp < cacheExpiry && Array.isArray(data) && data.length > 0) {
-            console.log('Usando datos de caché');
-            setAssets(data);
-            setFilteredAssets(data);
-            setIsLoading(false);
-            return;
-          }
-        } catch (e) {
-          console.warn('Error al leer caché:', e);
-          localStorage.removeItem(cacheKey);
-        }
-      }
-      
-      // Si no hay caché válida, hacer petición a la API
-      console.log('Obteniendo datos del servidor...');
-      const response = await axios.get<Asset[]>('/api/dashboard/market-data', {
-        timeout: 8000, // 8 segundos de timeout
+      // Obtener datos de la API local
+      const response = await axios.get('/api/dashboard/market-data', {
         headers: {
           'Cache-Control': 'no-cache',
           'Pragma': 'no-cache'
         }
       });
       
-      const assetsData = response.data;
-      
-      if (!assetsData || !Array.isArray(assetsData) || assetsData.length === 0) {
-        throw new Error('No se recibieron datos válidos del mercado');
-      }
-      
-      // Actualizar estado
-      setAssets(assetsData);
-      setFilteredAssets(assetsData);
-      
-      // Guardar en caché
-      localStorage.setItem(cacheKey, JSON.stringify({
-        data: assetsData,
-        timestamp: now
+      // Mapear los datos al formato de activo
+      const mappedData = response.data.map((asset: MarketData) => ({
+        id: asset.symbol,
+        name: asset.symbol,
+        symbol: asset.symbol,
+        symbol_db: asset.symbol_db,
+        category: 'Forex',
+        lastPrice: asset.price,
+        change24h: asset.change24h,
+        volume24h: asset.volume,
+        isFavorite: false,
+        marketCap: asset.price * asset.volume, // Simular capitalización
+        trend: asset.change24h > 0 ? 'up' : asset.change24h < 0 ? 'down' : 'neutral',
+        alerts: 0,
+        high24h: asset.high24h,
+        low24h: asset.low24h,
+        lastUpdated: asset.lastUpdated
       }));
       
-      console.log(`Datos cargados (${assetsData.length} activos):`, assetsData);
+      setAssets(mappedData);
+      setFilteredAssets(mappedData);
       
     } catch (error) {
-      console.error('Error fetching market data:', error);
-      
-      // Intentar usar datos en caché incluso si están vencidos
-      const cachedData = localStorage.getItem(cacheKey);
-      if (cachedData) {
-        try {
-          const { data } = JSON.parse(cachedData);
-          if (Array.isArray(data) && data.length > 0) {
-            setAssets(data);
-            setFilteredAssets(data);
-            toast.warning('Datos en caché', {
-              description: 'Se están mostrando datos en caché debido a un error en la conexión.',
-            });
-            setIsLoading(false);
-            return;
-          }
-        } catch (e) {
-          console.warn('Error al leer caché de respaldo:', e);
-        }
-      }
-      
-      // Si no hay caché o está corrupta, intentar obtener datos directamente de Binance
-      try {
-        console.log('Intentando obtener datos directamente de Binance...');
-        const symbols = ['EURUSDT', 'BTCUSDT'];
-        const fallbackData: Asset[] = [];
-        
-        for (const symbol of symbols) {
-          try {
-            const ticker = await getTickerPrice(symbol);
-            if (ticker) {
-              const category = symbol.includes('BTC') ? 'Crypto' : 'Forex';
-              const name = symbol.includes('BTC') ? 'Bitcoin' : 'Euro / US Dollar';
-              
-              fallbackData.push({
-                id: symbol,
-                name,
-                symbol,
-                category,
-                lastPrice: parseFloat(ticker.lastPrice),
-                change24h: parseFloat(ticker.priceChangePercent),
-                volume24h: parseFloat(ticker.quoteVolume),
-                isFavorite: false,
-                marketCap: 0,
-                volatility: 0,
-                trend: parseFloat(ticker.priceChangePercent) >= 0 ? 'up' : 'down',
-                alerts: 0
-              });
-            }
-          } catch (e) {
-            console.warn(`Error obteniendo datos de Binance para ${symbol}:`, e);
-          }
-        }
-        
-        if (fallbackData.length > 0) {
-          setAssets(fallbackData);
-          setFilteredAssets(fallbackData);
-          toast.warning('Modo de respaldo', {
-            description: 'Usando datos directamente de Binance debido a problemas con la API.',
-          });
-          setIsLoading(false);
-          return;
-        }
-      } catch (fallbackError) {
-        console.error('Error en modo de respaldo:', fallbackError);
-      }
-      
-      // Si todo falla, mostrar error
-      const errorMessage = error instanceof Error ? error.message : 'Error al cargar los datos del mercado';
-      toast.error('Error de mercado', {
-        description: errorMessage,
-      });
+      console.error('Error al obtener datos del mercado:', error);
+      toast.error('Error al cargar los datos del mercado');
     } finally {
       setIsLoading(false);
     }
@@ -539,8 +411,8 @@ export default function Dashboard() {
                         <span>Real-time</span>
                       </div>
                       <div className="flex gap-2">
-                        {asset.symbol === 'EURUSDT' ? (
-                          <Link href={`/eur-usd/analysis`}>
+                        {asset.symbol_db === 'eur-usd' ? (
+                          <Link href={`/${asset.symbol_db}/analysis`}>
                             <Button variant="default" size="sm" className="flex items-center gap-2">
                               Analyze
                               <ArrowRight className="h-4 w-4" />
