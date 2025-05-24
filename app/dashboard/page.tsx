@@ -32,10 +32,28 @@ interface NewsItem {
   url: string;
 }
 
+interface Asset {
+  id: string;
+  name: string;
+  symbol: string;
+  symbol_db: string;
+  category: string;
+  lastPrice: number;
+  change24h: number;
+  volume24h: number;
+  isFavorite: boolean;
+  marketCap: number;
+  trend: 'up' | 'down' | 'neutral';
+  alerts: number;
+  high24h: number;
+  low24h: number;
+  lastUpdated: string;
+}
+
 export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [assets, setAssets] = useState<MarketData[]>([]);
-  const [filteredAssets, setFilteredAssets] = useState<MarketData[]>([]);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [filteredAssets, setFilteredAssets] = useState<Asset[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('Forex');
   const [sortBy, setSortBy] = useState<string>('marketCap');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -127,7 +145,6 @@ export default function Dashboard() {
 
     if (searchQuery) {
       filtered = filtered.filter(asset =>
-        asset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         asset.symbol.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
@@ -399,7 +416,7 @@ export default function Dashboard() {
                         <p className="text-sm text-muted-foreground">Volatility</p>
                         <p className="text-sm font-medium">
                           <AnimatedNumber
-                            value={asset.volatility ? parseFloat(asset.volatility.toFixed(4)) : 0}
+                            value={asset.change24h ? parseFloat(asset.change24h.toFixed(4)) : 0}
                             formatValue={(val) => val.toFixed(4)}
                           />
                           %</p>
