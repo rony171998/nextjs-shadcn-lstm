@@ -11,12 +11,35 @@ import axios, { AxiosError } from 'axios';
 import { Data } from '@/lib/db';
 import { Datapredictions } from '@/app/api/predict/route';
 import { TradingViewChart } from '@/components/ui/tradingview-chart';
-import { AssetBinance } from '@/app/dashboard/page';
 import { getTickerPrice } from '@/lib/binance';
 import { AnimatedNumber } from '@/components/ui/animated-number';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
+
+interface AssetBinance {
+  symbol: string;
+  priceChange: string;
+  priceChangePercent: string;
+  weightedAvgPrice: string;
+  prevClosePrice: string;
+  lastPrice: string;
+  lastQty: string;
+  bidPrice: string;
+  bidQty: string;
+  askPrice: string;
+  askQty: string;
+  openPrice: string;
+  highPrice: string;
+  lowPrice: string;
+  volume: string;
+  quoteVolume: string;
+  openTime: number;
+  closeTime: number;
+  firstId: number;
+  lastId: number;
+  count: number;
+}
 
 const initialMarketData: AssetBinance = {
   symbol: '',
