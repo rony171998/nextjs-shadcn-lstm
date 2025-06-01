@@ -35,11 +35,11 @@ interface ChartType {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-export function TradingViewWrapper({ 
-  klines, 
-  predictionData, 
-  symbol, 
-  models, 
+export function TradingViewWrapper({
+  klines,
+  predictionData,
+  symbol,
+  models,
   height = 500,
   defaultPeriod = 'daily',
   defaultModel = 'TLS_LSTMModel',
@@ -48,7 +48,7 @@ export function TradingViewWrapper({
 }: TradingViewWrapperProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   const [chartType, setChartType] = useState<'area' | 'line' | 'candlestick' | 'bar'>(defaultChartType);
   const [period, setPeriod] = useState<Timeframe>(defaultPeriod);
   const [dataRange, setDataRange] = useState<number | null>(defaultDataRange);
@@ -95,10 +95,11 @@ export function TradingViewWrapper({
     router.replace(`?${newParams.toString()}`, { scroll: false });
   };
 
-  // Manejadores de cambios
   const handleChartTypeChange = (value: string) => {
-    setChartType(value);
-    updateUrlParams({ chartType: value });
+    if (['area', 'line', 'candlestick', 'bar'].includes(value)) {
+      setChartType(value as 'area' | 'line' | 'candlestick' | 'bar');
+      updateUrlParams({ chartType: value });
+    }
   };
 
   const handlePeriodChange = (value: string) => {
