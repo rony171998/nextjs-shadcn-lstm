@@ -133,7 +133,9 @@ export default async function Page({ params, searchParams }: PageProps) {
     const volume24h = klines.length > 0 ? klines.reduce((sum: number, d: Data) => sum + (d as any).volume || 0, 0) : 0;
 
     // Format the last update time
-    const lastUpdateTime = klines.length > 0 ? formatDate(klines[0].date) : 'N/A';
+    const lastUpdateTime = klines.length > 0 
+    ? formatDate(new Date(klines[0].date).getTime()) 
+    : 'N/A';
 
     return (
         <div className="mx-auto p-4 space-y-8">
