@@ -76,7 +76,7 @@ export default function EurUsdAnalysisClient() {
   const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
   const [dataRange, setDataRange] = useState<number | null>(30); // Por defecto 30 días (1 mes), null = sin límite
   const [prediction, setPrediction] = useState<Datapredictions[]>([]);
-  const [models, setModels] = useState<{ name: string; description: string }[]>([]);
+  const [models, setModels] = useState<{ model_name: string }[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('TLS_LSTMModel');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -84,8 +84,8 @@ export default function EurUsdAnalysisClient() {
     try {
       setError(null);
       const url = dataRange === null
-        ? `/api/eur-usd?period=${period}`
-        : `/api/eur-usd?period=${period}&limit=${dataRange}`;
+        ? `/api/eur-usd?period=${period}&tableName=eur_usd`
+        : `/api/eur-usd?period=${period}&limit=${dataRange}&tableName=eur_usd`;
 
       const response = await axios.get<Data[]>(url, {
         headers: {
@@ -146,7 +146,7 @@ export default function EurUsdAnalysisClient() {
 
   const fetchModels = useCallback(async () => {
     try {
-      const response = await axios.get<{ name: string; description: string }[]>('/api/models');
+      const response = await axios.get<{ model_name: string }[]>('/api/models');
       setModels(response.data);
       return true;
     } catch (error) {
@@ -653,8 +653,8 @@ export default function EurUsdAnalysisClient() {
               </SelectTrigger>
               <SelectContent>
                 {models.map(model => (
-                  <SelectItem key={model.name} value={model.name}>
-                    {model.name}
+                  <SelectItem key={model.model_name} value={model.model_name}>
+                    {model.model_name}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -111,18 +111,20 @@ function calculateEMA(
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const period = searchParams.get("period") || "daily";
+    const limit = parseInt(searchParams.get("limit") ?? "100");
+    const tableName = searchParams.get("tableName") ?? "eur_usd";
 
     try {
         let data: Data[];
 
         if (period === "weekly") {
-            data = await getEurUsdWeeklyData();
+            data = await getEurUsdWeeklyData({ limit: limit, tableName: tableName });
         } else if (period === "monthly") {
-            data = await getEurUsdMonthlyData();
+            data = await getEurUsdMonthlyData({ limit: limit, tableName: tableName });
         } else if (period === "yearly") {
-            data = await getEurUsdYearlyData();
+            data = await getEurUsdYearlyData({ limit: limit, tableName: tableName });
         } else {
-            data = await getEurUsdData();
+            data = await getEurUsdData({ limit: limit, tableName: tableName });
         }
 
         if (data.length < 20) {

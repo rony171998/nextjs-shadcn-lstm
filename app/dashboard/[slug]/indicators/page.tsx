@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, ArrowLeft } from "lucide-react";
 import axios from 'axios';
+import { useParams } from 'next/navigation';
 
 interface IndicatorData {
   date: string;
@@ -46,6 +47,7 @@ const INDICATORS_CONFIG = {
 type IndicatorType = keyof typeof INDICATORS_CONFIG;
 
 export default function IndicatorsPage() {
+  const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
   const [indicators, setIndicators] = useState<Indicators>({});
   const [loading, setLoading] = useState(true);
@@ -58,7 +60,7 @@ export default function IndicatorsPage() {
     setLoading(true);
     setIsRefreshing(true);
     try {
-      const response = await axios.get(`/api/eur-usd/indicators?period=${period}&limit=100`);
+      const response = await axios.get(`/api/eur-usd/indicators?period=${period}&limit=100&tableName=${slug.replace('-', '_')}`);
       setIndicators(response.data);
       setError(null);
     } catch (error) {

@@ -60,10 +60,10 @@ export default function Dashboard() {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  
+
   const fetchMarketData = useCallback(async () => {
     setIsLoading(true);
-    
+
     try {
       // Obtener datos de la API local
       const response = await axios.get('/api/dashboard/market-data', {
@@ -72,7 +72,7 @@ export default function Dashboard() {
           'Pragma': 'no-cache'
         }
       });
-      
+
       // Mapear los datos al formato de activo
       const mappedData = response.data.map((asset: MarketData) => ({
         id: asset.symbol,
@@ -91,10 +91,10 @@ export default function Dashboard() {
         low24h: asset.low24h,
         lastUpdated: asset.lastUpdated
       }));
-      
+
       setAssets(mappedData);
       setFilteredAssets(mappedData);
-      
+
     } catch (error) {
       console.error('Error al obtener datos del mercado:', error);
       toast.error('Error al cargar los datos del mercado');
@@ -124,7 +124,7 @@ export default function Dashboard() {
         console.error('Error cargando datos iniciales:', error);
       }
     };
-    
+
     // Cargar datos iniciales
     loadInitialData();
 
@@ -176,11 +176,11 @@ export default function Dashboard() {
   const fetchNews = useCallback(async () => {
     try {
       const response = await fetch('/api/dashboard/news');
-      
+
       if (!response.ok) {
         throw new Error('Error al cargar las noticias');
       }
-      
+
       const newsData = await response.json();
       setNews(newsData);
     } catch (error) {
@@ -204,8 +204,8 @@ export default function Dashboard() {
       <div className="flex flex-col space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="flex items-center gap-4">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="icon"
               className="h-10 w-10"
               onClick={() => router.back()}
@@ -428,19 +428,12 @@ export default function Dashboard() {
                         <span>Real-time</span>
                       </div>
                       <div className="flex gap-2">
-                        {asset.symbol_db === 'eur-usd' ? (
-                          <Link href={`/${asset.symbol_db}/analysis`}>
-                            <Button variant="default" size="sm" className="flex items-center gap-2">
-                              Analyze
-                              <ArrowRight className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                        ) : (
-                          <Button variant="outline" size="sm" className="flex items-center gap-2" disabled>
-                            Coming Soon
-                            <Clock className="h-4 w-4" />
+                        <Link href={`dashboard/${asset.symbol_db}`}>
+                          <Button variant="default" size="sm" className="flex items-center gap-2">
+                            Analyze
+                            <ArrowRight className="h-4 w-4" />
                           </Button>
-                        )}
+                        </Link>
                       </div>
                     </div>
                   </div>

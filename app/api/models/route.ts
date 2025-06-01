@@ -1,23 +1,29 @@
 import { NextResponse } from 'next/server';
-import axios from 'axios';
+import { neon } from '@neondatabase/serverless';
+
+const sql = neon(process.env.DATABASE_URL!);
 
 // Configuración para rutas dinámicas
 export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
 
-const NEXT_PUBLIC_BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+export interface Model {
+  model_name: string;
+}
 
 export async function GET() {
   try {
-    const response = await axios.get(`${NEXT_PUBLIC_BACKEND_URL}/api/models`, {
-      headers: { 'accept': 'application/json' },
-    });
+    const result = await sql`
+      SELECT DISTINCT model_name 
+      FROM predictions 
+      ORDER BY model_name ASC
+    `;
     
-    return NextResponse.json(response.data);
+    return NextResponse.json(result);
   } catch (error) {
-    console.error('Error fetching models from backend:', error);
+    console.error('Error fetching models from database:', error);
     return NextResponse.json(
-      { error: `Could not connect to backend: ${error instanceof Error ? error.message : String(error)}` }, 
+      { error: `Error fetching models: ${error instanceof Error ? error.message : String(error)}` }, 
       { status: 500 }
     );
   }

@@ -1,6 +1,17 @@
-import { neon } from '@neondatabase/serverless';
+import { Pool } from '@neondatabase/serverless';
 
-const sql = neon(process.env.DATABASE_URL!);
+// Initialize the Neon database client with Pool for better type safety
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+// Type for the query result
+interface QueryResult {
+  date: Date;
+  close: number;
+  open: number;
+  high: number;
+  low: number;
+  avg_price: number;
+}
 
 export type Data = {
   date: string;
@@ -11,310 +22,182 @@ export type Data = {
   close: number;
 };
 
-export async function getEurUsdData(limit?: number): Promise<Data[]> {
+// Helper function to safely execute dynamic table name queries
+async function executeDynamicTableQuery(query: string, params: any[] = []): Promise<Data[]> {
+  const client = await pool.connect();
   try {
-    let query;
-    if (limit) {
-      query = sql`
-        SELECT
-          fecha AS date,
-          "último" AS close,
-          "apertura" AS open,
-          "máximo" AS high,
-          "mínimo" AS low,
-          "último" AS avg_price
-        FROM eur_usd
-        ORDER BY fecha DESC
-        LIMIT ${limit};
-      `;
-    } else {
-      query = sql`
-        SELECT
-          fecha AS date,
-          "último" AS close,
-          "apertura" AS open,
-          "máximo" AS high,
-          "mínimo" AS low,
-          "último" AS avg_price
-        FROM eur_usd
-        ORDER BY fecha DESC;
-      `;
-    }
-    const result = await query;
-    console.log('Daily data:', result[0]);
-    // Daily data: [
-    //  {
-    //    fecha: 2011-05-03T05:00:00.000Z,
-    //    'último': 1.4826,
-    //    apertura: 1.4825,
-    //    'máximo': 1.4891,
-    //    'mínimo': 1.4753,
-    //    vol: null,
-    //    var: 0.01
-    //  },
-    return result.map((row: any) => ({
-      date: row.date.toISOString(),
-      avg_price: parseFloat(row.avg_price),
-      high: parseFloat(row.high),
-      low: parseFloat(row.low),
-      open: parseFloat(row.open),
-      close: parseFloat(row.close),
+    // Execute the query with the client
+    const result = await client.query<QueryResult>(query, params);
+    
+    // Handle the result
+    return result.rows.map(row => ({
+      date: new Date(row.date).toISOString(),
+      avg_price: Number(row.avg_price),
+      high: Number(row.high),
+      low: Number(row.low),
+      open: Number(row.open),
+      close: Number(row.close),
     }));
+  } catch (error) {
+    console.error('Error executing query:', error);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+interface QueryOptions {
+  limit?: number;
+  tableName?: string;
+  timeFrame?: 'daily' | 'weekly' | 'monthly' | 'yearly';
+}
+
+export async function getEurUsdData({limit, tableName = 'eur_usd', timeFrame = 'daily'}: QueryOptions = {}): Promise<Data[]> {
+  try {
+    const params: any[] = [];
+    
+    // Base query parts
+    let query = `
+      SELECT
+        fecha AS date,
+        "último" AS close,
+        "apertura" AS open,
+        "máximo" AS high,
+        "mínimo" AS low,
+        "último" AS avg_price
+      FROM ${tableName}
+      ORDER BY fecha DESC
+    `;
+    
+    // Add limit if provided
+    if (limit) {
+      query = `${query} LIMIT $1`;
+      params.push(limit);
+    }
+    
+    // Execute the query with parameters
+    const result = await executeDynamicTableQuery(query, params);
+    console.log('Daily data:', result[0]);
+    return result;
   } catch (error) {
     console.error('Error fetching EUR/USD daily data:', error);
     throw error;
   }
 }
 
-export async function getEurUsdWeeklyData(limit?: number): Promise<Data[]> {
+export async function getEurUsdWeeklyData({limit, tableName = 'eur_usd'}: QueryOptions = {}): Promise<Data[]> {
   try {
     let query;
     if (limit) {
-      query = sql`
-        WITH base AS (
-          SELECT fecha, "último", DATE_TRUNC('week', fecha) AS period
-          FROM eur_usd
-        ),
-        ranked AS (
-          SELECT *,
-                 ROW_NUMBER() OVER (PARTITION BY period ORDER BY fecha ASC) AS rn_asc,
-                 ROW_NUMBER() OVER (PARTITION BY period ORDER BY fecha DESC) AS rn_desc
-          FROM base
-        ),
-        open_close AS (
-          SELECT period,
-                 MAX(CASE WHEN rn_asc = 1 THEN "último" END) AS open,
-                 MAX(CASE WHEN rn_desc = 1 THEN "último" END) AS close
-          FROM ranked
-          GROUP BY period
-        ),
-        stats AS (
-          SELECT period,
-                 MAX("último") AS high,
-                 MIN("último") AS low,
-                 AVG("último") AS avg_price
-          FROM base
-          GROUP BY period
+      query = `
+        WITH weekly_data AS (
+          SELECT 
+            date_trunc('week', date) as date,
+            AVG((high + low + close) / 3) as avg_price,
+            MAX(high) as high,
+            MIN(low) as low,
+            FIRST_VALUE(open) OVER (PARTITION BY date_trunc('week', date) ORDER BY date) as open,
+            LAST_VALUE(close) OVER (PARTITION BY date_trunc('week', date) ORDER BY date) as close
+          FROM ${tableName}
+          GROUP BY date_trunc('week', date), date
         )
-        SELECT period AS date, open, close, high, low, ROUND(avg_price::numeric, 4) as avg_price
-        FROM open_close
-        JOIN stats USING (period)
+        SELECT * FROM weekly_data
         ORDER BY date DESC
-        LIMIT ${limit};
+        LIMIT $1
       `;
+      return await executeDynamicTableQuery(query, [limit]);
     } else {
-      query = sql`
-        WITH base AS (
-          SELECT fecha, "último", DATE_TRUNC('week', fecha) AS period
-          FROM eur_usd
-        ),
-        ranked AS (
-          SELECT *,
-                 ROW_NUMBER() OVER (PARTITION BY period ORDER BY fecha ASC) AS rn_asc,
-                 ROW_NUMBER() OVER (PARTITION BY period ORDER BY fecha DESC) AS rn_desc
-          FROM base
-        ),
-        open_close AS (
-          SELECT period,
-                 MAX(CASE WHEN rn_asc = 1 THEN "último" END) AS open,
-                 MAX(CASE WHEN rn_desc = 1 THEN "último" END) AS close
-          FROM ranked
-          GROUP BY period
-        ),
-        stats AS (
-          SELECT period,
-                 MAX("último") AS high,
-                 MIN("último") AS low,
-                 AVG("último") AS avg_price
-          FROM base
-          GROUP BY period
+      query = `
+        WITH weekly_data AS (
+          SELECT 
+            date_trunc('week', date) as date,
+            AVG((high + low + close) / 3) as avg_price,
+            MAX(high) as high,
+            MIN(low) as low,
+            FIRST_VALUE(open) OVER (PARTITION BY date_trunc('week', date) ORDER BY date) as open,
+            LAST_VALUE(close) OVER (PARTITION BY date_trunc('week', date) ORDER BY date) as close
+          FROM ${tableName}
+          GROUP BY date_trunc('week', date), date
         )
-        SELECT period AS date, open, close, high, low, ROUND(avg_price::numeric, 4) as avg_price
-        FROM open_close
-        JOIN stats USING (period)
-        ORDER BY date DESC;
+        SELECT * FROM weekly_data
+        ORDER BY date DESC
       `;
+      return await executeDynamicTableQuery(query);
     }
-    const result = await query;
-    console.log('Weekly data:', result[0]);
-    return result.map((row: any) => ({
-      date: row.date.toISOString(),
-      avg_price: parseFloat(row.avg_price),
-      high: parseFloat(row.high),
-      low: parseFloat(row.low),
-      open: parseFloat(row.open),
-      close: parseFloat(row.close),
-    }));
   } catch (error) {
     console.error('Error fetching EUR/USD weekly data:', error);
     throw error;
   }
 }
 
-export async function getEurUsdMonthlyData(limit?: number): Promise<Data[]> {
+export async function getEurUsdMonthlyData({limit, tableName = 'eur_usd'}: QueryOptions = {}): Promise<Data[]> {
   try {
     let query;
     if (limit) {
-      query = sql`
-        WITH base AS (
-          SELECT fecha, "último", DATE_TRUNC('month', fecha) AS period
-          FROM eur_usd
-        ),
-        ranked AS (
-          SELECT *,
-                 ROW_NUMBER() OVER (PARTITION BY period ORDER BY fecha ASC) AS rn_asc,
-                 ROW_NUMBER() OVER (PARTITION BY period ORDER BY fecha DESC) AS rn_desc
-          FROM base
-        ),
-        open_close AS (
-          SELECT period,
-                 MAX(CASE WHEN rn_asc = 1 THEN "último" END) AS open,
-                 MAX(CASE WHEN rn_desc = 1 THEN "último" END) AS close
-          FROM ranked
-          GROUP BY period
-        ),
-        stats AS (
-          SELECT period,
-                 MAX("último") AS high,
-                 MIN("último") AS low,
-                 AVG("último") AS avg_price
-          FROM base
-          GROUP BY period
+      query = `
+        WITH monthly_data AS (
+          SELECT 
+            date_trunc('month', date) as date,
+            AVG((high + low + close) / 3) as avg_price,
+            MAX(high) as high,
+            MIN(low) as low,
+            FIRST_VALUE(open) OVER (PARTITION BY date_trunc('month', date) ORDER BY date) as open,
+            LAST_VALUE(close) OVER (PARTITION BY date_trunc('month', date) ORDER BY date) as close
+          FROM ${tableName}
+          GROUP BY date_trunc('month', date), date
         )
-        SELECT period AS date, open, close, high, low, ROUND(avg_price::numeric, 4) as avg_price
-        FROM open_close
-        JOIN stats USING (period)
+        SELECT * FROM monthly_data
         ORDER BY date DESC
-        LIMIT ${limit};
+        LIMIT $1
       `;
+      return await executeDynamicTableQuery(query, [limit]);
     } else {
-      query = sql`
-        WITH base AS (
-          SELECT fecha, "último", DATE_TRUNC('month', fecha) AS period
-          FROM eur_usd
-        ),
-        ranked AS (
-          SELECT *,
-                 ROW_NUMBER() OVER (PARTITION BY period ORDER BY fecha ASC) AS rn_asc,
-                 ROW_NUMBER() OVER (PARTITION BY period ORDER BY fecha DESC) AS rn_desc
-          FROM base
-        ),
-        open_close AS (
-          SELECT period,
-                 MAX(CASE WHEN rn_asc = 1 THEN "último" END) AS open,
-                 MAX(CASE WHEN rn_desc = 1 THEN "último" END) AS close
-          FROM ranked
-          GROUP BY period
-        ),
-        stats AS (
-          SELECT period,
-                 MAX("último") AS high,
-                 MIN("último") AS low,
-                 AVG("último") AS avg_price
-          FROM base
-          GROUP BY period
+      query = `
+        WITH monthly_data AS (
+          SELECT 
+            date_trunc('month', date) as date,
+            AVG((high + low + close) / 3) as avg_price,
+            MAX(high) as high,
+            MIN(low) as low,
+            FIRST_VALUE(open) OVER (PARTITION BY date_trunc('month', date) ORDER BY date) as open,
+            LAST_VALUE(close) OVER (PARTITION BY date_trunc('month', date) ORDER BY date) as close
+          FROM ${tableName}
+          GROUP BY date_trunc('month', date), date
         )
-        SELECT period AS date, open, close, high, low, ROUND(avg_price::numeric, 4) as avg_price
-        FROM open_close
-        JOIN stats USING (period)
-        ORDER BY date DESC;
+        SELECT * FROM monthly_data
+        ORDER BY date DESC
       `;
+      return await executeDynamicTableQuery(query);
     }
-    const result = await query;
-    console.log('Monthly data:', result[0]);
-    return result.map((row: any) => ({
-      date: row.date.toISOString(),
-      avg_price: parseFloat(row.avg_price),
-      high: parseFloat(row.high),
-      low: parseFloat(row.low),
-      open: parseFloat(row.open),
-      close: parseFloat(row.close),
-    }));
   } catch (error) {
     console.error('Error fetching EUR/USD monthly data:', error);
     throw error;
   }
 }
 
-export async function getEurUsdYearlyData(limit?: number): Promise<Data[]> {
+export async function getEurUsdYearlyData({limit, tableName = 'eur_usd'}: QueryOptions = {}): Promise<Data[]> {
   try {
-    let query;
+    const baseQuery = `
+      WITH yearly_data AS (
+        SELECT 
+          date_trunc('year', date) as date,
+          AVG((high + low + close) / 3) as avg_price,
+          MAX(high) as high,
+          MIN(low) as low,
+          FIRST_VALUE(open) OVER (PARTITION BY date_trunc('year', date) ORDER BY date) as open,
+          LAST_VALUE(close) OVER (PARTITION BY date_trunc('year', date) ORDER BY date) as close
+        FROM ${tableName}
+        GROUP BY date_trunc('year', date), date
+      )
+      SELECT * FROM yearly_data
+      ORDER BY date DESC
+    `;
+    
     if (limit) {
-      query = sql`
-        WITH base AS (
-          SELECT fecha, "último", DATE_TRUNC('year', fecha) AS period
-          FROM eur_usd
-        ),
-        ranked AS (
-          SELECT *,
-                 ROW_NUMBER() OVER (PARTITION BY period ORDER BY fecha ASC) AS rn_asc,
-                 ROW_NUMBER() OVER (PARTITION BY period ORDER BY fecha DESC) AS rn_desc
-          FROM base
-        ),
-        open_close AS (
-          SELECT period,
-                 MAX(CASE WHEN rn_asc = 1 THEN "último" END) AS open,
-                 MAX(CASE WHEN rn_desc = 1 THEN "último" END) AS close
-          FROM ranked
-          GROUP BY period
-        ),
-        stats AS (
-          SELECT period,
-                 MAX("último") AS high,
-                 MIN("último") AS low,
-                 AVG("último") AS avg_price
-          FROM base
-          GROUP BY period
-        )
-        SELECT period AS date, open, close, high, low, ROUND(avg_price::numeric, 4) as avg_price
-        FROM open_close
-        JOIN stats USING (period)
-        ORDER BY date DESC
-        LIMIT ${limit};
-      `;
-    } else {
-      query = sql`
-        WITH base AS (
-          SELECT fecha, "último", DATE_TRUNC('year', fecha) AS period
-          FROM eur_usd
-        ),
-        ranked AS (
-          SELECT *,
-                 ROW_NUMBER() OVER (PARTITION BY period ORDER BY fecha ASC) AS rn_asc,
-                 ROW_NUMBER() OVER (PARTITION BY period ORDER BY fecha DESC) AS rn_desc
-          FROM base
-        ),
-        open_close AS (
-          SELECT period,
-                 MAX(CASE WHEN rn_asc = 1 THEN "último" END) AS open,
-                 MAX(CASE WHEN rn_desc = 1 THEN "último" END) AS close
-          FROM ranked
-          GROUP BY period
-        ),
-        stats AS (
-          SELECT period,
-                 MAX("último") AS high,
-                 MIN("último") AS low,
-                 AVG("último") AS avg_price
-          FROM base
-          GROUP BY period
-        )
-        SELECT period AS date, open, close, high, low, ROUND(avg_price::numeric, 4) as avg_price
-        FROM open_close
-        JOIN stats USING (period)
-        ORDER BY date DESC;
-      `;
+      return await executeDynamicTableQuery(`${baseQuery} LIMIT $1`, [limit]);
     }
-    const result = await query;
-    console.log('Yearly data:', result[0]);
-    return result.map((row: any) => ({
-      date: row.date.toISOString(),
-      avg_price: parseFloat(row.avg_price),
-      high: parseFloat(row.high),
-      low: parseFloat(row.low),
-      open: parseFloat(row.open),
-      close: parseFloat(row.close),
-    }));
+    
+    return await executeDynamicTableQuery(baseQuery);
   } catch (error) {
     console.error('Error fetching EUR/USD yearly data:', error);
     throw error;

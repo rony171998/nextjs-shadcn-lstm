@@ -12,10 +12,11 @@ export interface MarketData {
   lastUpdated: string;
 }
 
-export async function GET() {
+export async function GET(request: Request, context: any) {
   try {
     // Get the latest 2 data points to calculate 24h change
-    const data = await getEurUsdData(2);
+    const data = await getEurUsdData({ limit: 2, tableName: 'eur_usd', timeFrame: 'daily' });
+    const data2 = await getEurUsdData({ limit: 2, tableName: 'usd_cop', timeFrame: 'daily' });
     
     if (!data || data.length === 0) {
       throw new Error('No se encontraron datos de EUR/USD');
@@ -37,6 +38,16 @@ export async function GET() {
         low24h: latest.low,
         volume: 0, // Volume data not available in the database
         lastUpdated: latest.date
+      },
+      {
+        symbol: 'USD/COP',
+        symbol_db: 'usd-cop',
+        price: data2[0].close,
+        change24h: parseFloat(change24h.toFixed(2)),
+        high24h: data2[0].high,
+        low24h: data2[0].low,
+        volume: 0, // Volume data not available in the database
+        lastUpdated: data2[0].date
       }
     ];
 

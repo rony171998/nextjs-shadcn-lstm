@@ -7,18 +7,19 @@ export const revalidate = 0;
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const period = searchParams.get('period');
+  const tableName = searchParams.get('tableName');
   const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit') as string) : undefined;
 
   try {
     let data;
     if (period === 'weekly') {
-      data = await getEurUsdWeeklyData(limit);
+      data = await getEurUsdWeeklyData({limit: limit as number, tableName: tableName as string});
     } else if (period === 'monthly') {
-      data = await getEurUsdMonthlyData(limit);
+      data = await getEurUsdMonthlyData({limit: limit as number, tableName: tableName as string});
     } else if (period === 'yearly') {
-      data = await getEurUsdYearlyData(limit);
+      data = await getEurUsdYearlyData({limit: limit as number, tableName: tableName as string});
     } else {
-      data = await getEurUsdData(limit);
+      data = await getEurUsdData({limit: limit as number, tableName: tableName as string});
     }
     
     return NextResponse.json(data, {
