@@ -176,6 +176,7 @@ export function SimpleChatInterface({ className }: SimpleChatInterfaceProps) {
             message:
               "Estás viendo el análisis detallado con gráficos históricos y predicciones de IA. Puedes explorar diferentes períodos de tiempo y tipos de visualización.",
             suggestions: ["¿Cómo interpretar el gráfico?", "Ver predicciones", "Cambiar vista"],
+            actions: []
           }
         }
       }
@@ -184,6 +185,7 @@ export function SimpleChatInterface({ className }: SimpleChatInterfaceProps) {
         response = {
           message: `Gracias por tu pregunta. Estoy aquí para ayudarte con Analytics Market AI. ¿Hay algo específico que te gustaría saber?`,
           suggestions: ["Características principales", "¿Cómo empezar?", "Soporte técnico"],
+          actions: []
         }
       }
 
@@ -203,6 +205,7 @@ export function SimpleChatInterface({ className }: SimpleChatInterfaceProps) {
         sender: "bot",
         timestamp: new Date(),
         suggestions: ["Ayuda", "Contacto"],
+        actions: []
       }
     }
   }
