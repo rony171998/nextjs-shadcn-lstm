@@ -1,13 +1,11 @@
 'use client'
 
-import { createChart, ColorType, IChartApi, Time, CandlestickData, LineData, CandlestickSeries, LineSeries, BarSeries, AreaSeries } from "lightweight-charts"
+import { createChart, ColorType, IChartApi, Time, CandlestickSeries, LineSeries, BarSeries, AreaSeries } from "lightweight-charts"
 import { Data } from "@/lib/db"
 import { Datapredictions } from "@/app/api/predict/route"
 import { useEffect, useRef } from "react"
 
 interface TradingViewChartProps {
-  readonly value: string
-  readonly title: string
   readonly data: Data[]
   readonly period: 'daily' | 'weekly' | 'monthly' | 'yearly'
   readonly prediction: Datapredictions[]
@@ -16,8 +14,6 @@ interface TradingViewChartProps {
 }
 
 export function TradingViewChart({ 
-  value, 
-  title, 
   data, 
   period, 
   prediction, 

@@ -2,6 +2,8 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { LanguageProvider } from '@/context/LanguageContext';
+import { EnhancedChatInterface } from '@/components/chat/enhanced-chat-interface';
+import { SimpleChatInterface } from '@/components/chat/simple-chat-interface';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -16,9 +18,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode;
-}) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
       <head>
@@ -27,6 +27,8 @@ export default function RootLayout({
       <body className={inter.className}>
         <LanguageProvider>
           <main>{children}</main>
+          {/* <EnhancedChatInterface /> */}
+          <SimpleChatInterface />
         </LanguageProvider>
       </body>
     </html>

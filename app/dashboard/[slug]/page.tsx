@@ -138,7 +138,7 @@ export default async function Page({ params, searchParams }: PageProps) {
     : 'N/A';
 
     return (
-        <div className="mx-auto p-4 space-y-8">
+        <div className="mx-auto p-10 space-y-8">
             {/* Header with gradient background */}
             <div className="relative overflow-hidden rounded-xl p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 shadow-sm">
                 <div className="absolute inset-0 bg-grid-slate-100 [mask-image:linear-gradient(0deg,#fff,rgba(255,255,255,0.6))] dark:bg-grid-slate-700/50"></div>
@@ -270,7 +270,7 @@ export default async function Page({ params, searchParams }: PageProps) {
                         predictionData={prediction}
                         symbol={symbol}
                         models={models}
-                        height={700}
+                        height={600}
                         defaultPeriod={period}
                         defaultModel={modelName}
                         defaultChartType={chartType as 'area' | 'line' | 'candlestick' | 'bar'}

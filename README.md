@@ -1,104 +1,116 @@
-# EUR/USD Market Analysis Platform
+# Analytics Market AI
 
-![EUR/USD Analysis Platform](public/dashboard-preview.png)
+## Description
 
-## 🚀 Overview
+Analytics Market AI is an advanced web platform designed for the analysis and prediction of currency pairs, specifically EUR/USD and USD/COP, using cutting-edge artificial intelligence and deep learning models. The platform provides interactive charts, real-time market data, and AI-powered predictions to help traders and analysts make informed decisions. It aims to democratize access to sophisticated financial analysis tools, regardless of user experience.
 
-This Next.js application provides comprehensive market analysis tools for EUR/USD currency pair trading. Built with modern web technologies, it offers real-time data visualization, technical indicators, and machine learning-based price predictions to help traders make informed decisions.
+## Features
 
-## ✨ Features
+*   **Real-time Market Overview:** Displays current prices, 24-hour changes, highs, and lows for key currency pairs (EUR/USD, USD/COP).
+*   **Interactive Charts:** Visualize historical and predicted price movements with customizable chart types (line, candlestick, bar, area) and timeframes (daily, weekly, monthly, yearly).
+*   **AI-Powered Predictions:** Utilizes advanced deep learning models like LSTM, GRU, Bidirectional LSTM, and Attention Mechanisms to generate accurate future price predictions.
+*   **Model Selection:** Allows users to select different AI model architectures to tailor predictions to their specific strategies.
+*   **Technical Indicators:** Provides access to various technical indicators for comprehensive market analysis.
+*   **Comprehensive Model Documentation:** Dedicated pages explaining the architecture, strengths, weaknesses, use cases, and performance metrics of each prediction model.
+*   **Multilingual Support:** Supports English and Spanish for a broader user base.
+*   **AI Chat Assistant:** An integrated chatbot provides context-aware assistance and answers questions about the platform, market analysis, and AI predictions.
+*   **Responsive Design:** Optimized for seamless experience across various devices, from desktops to mobile phones.
 
-- **Real-time Market Data**: Access up-to-date EUR/USD market information including price, volume, and market statistics
-- **Interactive Charts**: Visualize price movements with customizable TradingView-style charts
-- **Technical Indicators**: Analyze market trends with popular technical indicators
-- **ML Price Predictions**: Leverage LSTM-based machine learning models for price forecasting
-- **Responsive Design**: Optimized user experience across desktop and mobile devices
-- **Multi-language Support**: Available in English and Spanish
+## Installation
 
-## 🛠️ Tech Stack
-
-- **Framework**: Next.js 14 with App Router
-- **UI Components**: Shadcn UI (Tailwind CSS + Radix UI)
-- **State Management**: React Hooks
-- **Data Visualization**: Lightweight Charts
-- **API Integration**: Axios
-- **Notifications**: Sonner Toast
-- **Package Manager**: Bun
-
-## 📊 Dashboard & Analysis Tools
-
-The platform offers several key sections:
-
-- **Dashboard**: Overview of market assets and latest news
-- **EUR/USD Analysis**: Comprehensive price analysis with multiple data points:
-  - Current price and 24h change
-  - Opening price and price range
-  - Volume statistics
-  - Bid/Ask spread
-  - Weighted average price
-  - Previous close comparison
-- **Technical Indicators**: Various technical analysis tools
-- **Price Prediction**: Machine learning forecasts using LSTM models
-
-## 🚀 Getting Started
+To set up and run the Analytics Market AI project locally, follow these steps:
 
 ### Prerequisites
 
-- Node.js 18+ or Bun
-- Git
+*   Node.js (v18.x or higher)
+*   npm, yarn, or pnpm (npm is recommended)
+*   A PostgreSQL-compatible database (e.g., [Neon](https://neon.tech/)) with your market data.
 
-### Installation
+### Steps
 
-```bash
-# Clone the repository
-git clone https://github.com/rony171998/nextjs-shadcn-lstm.git
-cd nextjs-shadcn-lstm
+1.  **Clone the repository:**
+    \`\`\`bash
+    git clone https://github.com/rony171998/nextjs-shadcn-lstm.git
+    cd nextjs-shadcn-lstm
+    \`\`\`
 
-# Install dependencies
-bun install
+2.  **Install dependencies:**
+    \`\`\`bash
+    npm install
+    # or yarn install
+    # or pnpm install
+    \`\`\`
 
-# Start development server
-bun run dev
-```
+3.  **Configure Environment Variables:**
+    Create a `.env.local` file in the root of your project and add the following environment variables. Replace the placeholder values with your actual database connection string and application URL.
 
-The application will be available at `http://localhost:3000`.
+    \`\`\`env
+    DATABASE_URL="YOUR_NEON_DATABASE_CONNECTION_STRING"
+    NEXT_PUBLIC_BASE_URL="http://localhost:3000" # Or your Vercel deployment URL
+    PORT=3000 # Optional, default is 3000
+    \`\`\`
+    *   `DATABASE_URL`: Your connection string for the PostgreSQL database (e.g., from Neon). Ensure your database contains tables named `eur_usd` and `usd_cop` with `fecha`, `último`, `apertura`, `máximo`, `mínimo`, and `volumen` columns.
+    *   `NEXT_PUBLIC_BASE_URL`: The public URL where your application will be accessible. For local development, `http://localhost:3000` is typical. For Vercel deployments, this will be automatically set.
 
-### Building for Production
+4.  **Run the development server:**
+    \`\`\`bash
+    npm run dev
+    # or yarn dev
+    # or pnpm dev
+    \`\`\`
 
-```bash
-# Create optimized production build
-bun run build
+5.  **Open in your browser:**
+    The application will be accessible at `http://localhost:3000` (or the port you specified).
 
-# Start production server
-bun run start
-```
+## Usage
 
-## 📱 Mobile Responsiveness
+Once the application is running, you can:
 
-The application is fully responsive and optimized for:
-- Desktop monitors
-- Tablets
-- Mobile phones
+*   **Navigate the Landing Page:** Explore the project's features, about us, blogs, and FAQ sections.
+*   **Access the Dashboard:** Click "Get started" or navigate to `/dashboard` to see an overview of EUR/USD and USD/COP market data.
+*   **View Detailed Charts:** Click on a currency pair card (e.g., EUR/USD) to view its historical data and AI predictions on an interactive chart. You can change the timeframe, chart type, and prediction model.
+*   **Explore Prediction Models:** Visit the `/models` section (accessible via the sidebar) to learn about the different AI models used, their architectures, performance metrics, and training processes.
+*   **Interact with the AI Assistant:** Use the chat bubble at the bottom right corner to ask questions about the platform, market data, or AI models. The assistant provides context-aware responses and suggestions.
+*   **Switch Language:** Use the language switcher in the navigation bar to toggle between English and Spanish.
 
-Layout and components automatically adjust to provide the best user experience on any device.
+## Contributing
 
-## 🌐 Deployment
+We welcome contributions to the Analytics Market AI project! If you'd like to contribute, please follow these guidelines:
 
-The application is configured for easy deployment on Vercel:
+1.  **Fork the repository.**
+2.  **Clone your forked repository** to your local machine.
+3.  **Create a new branch** for your feature or bug fix: `git checkout -b feature/your-feature-name` or `git checkout -b bugfix/issue-description`.
+4.  **Make your changes** and ensure the code adheres to the existing style and conventions.
+5.  **Write clear, concise commit messages.**
+6.  **Push your branch** to your forked repository.
+7.  **Open a Pull Request** to the `main` branch of the original repository. Provide a detailed description of your changes.
 
-```bash
-# Deploy to Vercel
-vercel
-```
+## License
 
-## 📄 License
+This project is licensed under the MIT License. See the `LICENSE` file for more details.
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+## Contact
 
-## 👨‍💻 Author
+For any inquiries or support, please feel free to reach out:
 
-Created by [Rony Pacheco](https://github.com/rony171998)
+*   **GitHub:** [rony171998](https://github.com/rony171998)
+*   **Email:** [rony171998@gmail.com](mailto:rony171998@gmail.com) (Replace with your actual email)
 
----
+## Technologies Used
 
-Made with ❤️ using Next.js and Shadcn UI
+*   **Framework:** [Next.js](https://nextjs.org/) (App Router)
+*   **UI Library:** [React](https://react.dev/)
+*   **Styling:** [Tailwind CSS](https://tailwindcss.com/)
+*   **Components:** [shadcn/ui](https://ui.shadcn.com/)
+*   **Charting Library:** [Lightweight Charts](https://tradingview.github.io/lightweight-charts/)
+*   **Database:** [PostgreSQL](https://www.postgresql.org/) (with [Neon](https://neon.tech/) for serverless deployment)
+*   **HTTP Client:** [Axios](https://axios-http.com/)
+*   **Icons:** [Lucide React](https://lucide.dev/icons/)
+*   **Language:** [TypeScript](https://www.typescriptlang.org/)
+
+## Screenshots/Demo
+
+(Optional: Add screenshots of your application here or a link to a live demo.)
+
+![Analytics Market AI Dashboard](public/images/dashboard.png)
+_Placeholder image for the dashboard. Replace with actual screenshots._
