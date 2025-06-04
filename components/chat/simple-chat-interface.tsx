@@ -162,12 +162,14 @@ export function SimpleChatInterface({ className }: SimpleChatInterfaceProps) {
             message:
               "El gráfico muestra datos históricos (línea sólida) y predicciones futuras (línea punteada). Puedes cambiar entre diferentes tipos de visualización: línea, velas japonesas, barras o área.",
             suggestions: ["¿Cómo leer velas japonesas?", "¿Qué significan los colores?", "Cambiar período"],
+            actions: []
           }
         } else if (lowerMessage.includes("modelo") || lowerMessage.includes("ia")) {
           response = {
             message:
               "Utilizamos modelos de deep learning como LSTM (Long Short-Term Memory) y GRU (Gated Recurrent Unit), especialmente diseñados para analizar series temporales financieras.",
             suggestions: ["¿Qué es LSTM?", "¿Qué tan preciso es?", "Ver otros modelos"],
+            actions: []
           }
         } else {
           response = {
