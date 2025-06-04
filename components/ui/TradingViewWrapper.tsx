@@ -194,9 +194,7 @@ export function TradingViewWrapper({
             type={chartType as 'area' | 'line' | 'candlestick' | 'bar'}
             data={klines}
             prediction={predictionData}
-            title={symbol}
             period={period}
-            value="0"
             height={height}
           />
         </div>
